@@ -156,7 +156,13 @@ void AShooterCharacter::CharacterAim(const FInputActionValue& Value)
 
 void AShooterCharacter::CharacterSelect(const FInputActionValue& Value)
 {
-	
+	if (Value.Get<float>() == 1)
+	{
+		DropWeapon();
+	}
+	else
+	{
+	}
 }
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation)
@@ -380,6 +386,7 @@ void AShooterCharacter::DropWeapon()
 
 	const FDetachmentTransformRules TransformRules(EDetachmentRule::KeepWorld, true);
 	EquippedWeapon->GetItemMesh()->DetachFromComponent(TransformRules);
+	EquippedWeapon->SetItemState(EItemState::EIS_Falling);
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)
