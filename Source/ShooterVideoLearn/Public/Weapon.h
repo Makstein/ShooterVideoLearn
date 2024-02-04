@@ -13,5 +13,14 @@ UCLASS()
 class SHOOTERVIDEOLEARN_API AWeapon : public AItem
 {
 	GENERATED_BODY()
-	
+
+public:
+	AWeapon();
+protected:
+	void ThrowWeapon();
+	void StopFalling();
+private:
+	FTimerHandle ThrowWeaponTimer;
+	float ThrowWeaponTime;
+	bool bFalling;
 };
