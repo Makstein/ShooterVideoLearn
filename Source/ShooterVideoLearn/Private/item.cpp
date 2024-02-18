@@ -90,6 +90,7 @@ void AItem::SetItemProperties(const EItemState State)
 		}
 	case EItemState::EIS_Equipped:
 		{
+			PickupWidget->SetVisibility(false);
 			// Set Mesh properties
 			ItemMesh->SetSimulatePhysics(false);
 			ItemMesh->SetVisibility(true);
@@ -121,6 +122,7 @@ void AItem::SetItemProperties(const EItemState State)
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			break;	
 		}
+	default: break;
 	}
 }
 

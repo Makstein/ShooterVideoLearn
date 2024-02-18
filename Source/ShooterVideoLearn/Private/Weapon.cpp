@@ -7,6 +7,19 @@ AWeapon::AWeapon() :
 	ThrowWeaponTime(0.7f),
 	bFalling(false)
 {
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void AWeapon::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// keep weapon upright
+	if (GetItemState() == EItemState::EIS_Falling && bFalling)
+	{
+		const FRotator MeshRotation{0.f, GetItemMesh()->GetComponentRotation().Yaw, 0.f};
+		GetItemMesh()->SetWorldRotation(MeshRotation, false, nullptr, ETeleportType::TeleportPhysics);
+	}
 }
 
 void AWeapon::ThrowWeapon()
@@ -21,7 +34,7 @@ void AWeapon::ThrowWeapon()
 
 	const float RandomRotation{FMath::FRandRange(0, 45.f)};
 	ImpulseDirection = ImpulseDirection.RotateAngleAxis(RandomRotation, FVector::UpVector);
-	ImpulseDirection *= 20'0000.f;
+	ImpulseDirection *= 10'000.f;
 	GetItemMesh()->AddImpulse(ImpulseDirection);
 
 	bFalling = true;
@@ -31,4 +44,5 @@ void AWeapon::ThrowWeapon()
 void AWeapon::StopFalling()
 {
 	bFalling = false;
+	SetItemState(EItemState::EIS_Pickup);
 }

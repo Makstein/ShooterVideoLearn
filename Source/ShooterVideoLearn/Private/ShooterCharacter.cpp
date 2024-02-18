@@ -28,21 +28,21 @@ AShooterCharacter::AShooterCharacter() :
 	bAiming(false),
 	CameraDefaultFOV(0.f),
 	CameraZoomedFOV(35.f),
-	ZoomInterpSpeed(20.f),
 	CameraCurrentFOV(0.f),
+	ZoomInterpSpeed(20.f),
 	// 准星散布
 	CrosshairSpreadMultiplier(0.f),
 	CrosshairVelocityFactor(0.f),
 	CrosshairInAirFactor(0.f),
 	CrosshairAimFactor(0.f),
 	CrosshairShootingFactor(0.f),
+	// 自动射击
+	bFireButtonPressed(false),
+	bShouldFire(true),
 	// 射击参数
 	ShootTimeDuration(0.05f),
 	bFiringBullet(false),
-	// 自动射击
 	AutomaticFireRate(0.1f),
-	bShouldFire(true),
-	bFireButtonPressed(false),
 	bShouldTraceForItems(false)
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -158,7 +158,10 @@ void AShooterCharacter::CharacterSelect(const FInputActionValue& Value)
 {
 	if (Value.Get<float>() == 1)
 	{
-		DropWeapon();
+		if (!TraceHitItem) return;
+		
+		const auto TraceHitWeapon = Cast<AWeapon>(TraceHitItem);
+		SwapWeapon(TraceHitWeapon);
 	}
 	else
 	{
@@ -345,19 +348,19 @@ void AShooterCharacter::TraceForItems()
 
 	if (FHitResult ItemTraceResult; TraceUnderCrosshairs(ItemTraceResult))
 	{
-		AItem* HitItem = Cast<AItem>(ItemTraceResult.GetActor());
+		TraceHitItem = Cast<AItem>(ItemTraceResult.GetActor());
 
-		if (HitItem && HitItem->GetPickupWidget())
+		if (TraceHitItem && TraceHitItem->GetPickupWidget())
 		{
-			HitItem->GetPickupWidget()->SetVisibility(true);
+			TraceHitItem->GetPickupWidget()->SetVisibility(true);
 		}
 
-		if (TraceHitItemLastFrame && TraceHitItemLastFrame != HitItem)
+		if (TraceHitItemLastFrame && TraceHitItemLastFrame != TraceHitItem)
 		{
 			TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
 		}
 
-		TraceHitItemLastFrame = HitItem;
+		TraceHitItemLastFrame = TraceHitItem;
 	}
 }
 
@@ -387,6 +390,15 @@ void AShooterCharacter::DropWeapon()
 	const FDetachmentTransformRules TransformRules(EDetachmentRule::KeepWorld, true);
 	EquippedWeapon->GetItemMesh()->DetachFromComponent(TransformRules);
 	EquippedWeapon->SetItemState(EItemState::EIS_Falling);
+	EquippedWeapon->ThrowWeapon();
+}
+
+void AShooterCharacter::SwapWeapon(AWeapon* WeaponToSwap)
+{
+	DropWeapon();
+	EquipWeapon(WeaponToSwap);
+	TraceHitItem = nullptr;
+	TraceHitItemLastFrame = nullptr;
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)
