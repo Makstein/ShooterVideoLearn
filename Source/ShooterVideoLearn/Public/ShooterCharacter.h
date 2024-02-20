@@ -160,6 +160,14 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
 	AItem* TraceHitItem;
 
+	// Distance outward from the camera for the interp destination
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (AllowPrivateAccess = true))
+	float CameraInterpDistance;
+
+	// Distance upward from the camera for the interp destination
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (AllowPrivateAccess = true))
+	float CameraInterpElevation;
+	
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -216,4 +224,8 @@ public:
 
 	UFUNCTION()
 	float GetCrosshairSpreadMulitplier() const;
+
+	FVector GetCameraInterpLocation();
+
+	void GetPickupItem(AItem* Item);
 };
