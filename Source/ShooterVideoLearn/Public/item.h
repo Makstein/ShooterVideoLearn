@@ -71,7 +71,7 @@ protected:
 	void FinishInterping();
 
 	// Handle item interpolation when in the EquipInterping state
-	void ItemInterp(float DeltaTime);
+	void ItemInterp(const float DeltaTime);
 
 public:
 	// Called every frame
@@ -140,6 +140,13 @@ private:
 	// X and Y for the item while interping in EquipInterping state
 	float ItemInterpX;
 	float ItemInterpY;
+
+	// Initial yaw offset between the camera and the item
+	float InterpInitialYawOffset;
+
+	// Curve used to scale the item when interping
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UCurveFloat* ItemScaleCurve;
 	
 public:
 	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
