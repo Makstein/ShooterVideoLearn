@@ -10,6 +10,16 @@
 class AWeapon;
 class AItem;
 
+UENUM(BlueprintType)
+enum class EAmmoType: uint8
+{
+	EAT_9MM UMETA(DisplayName = "9mm"),
+	EAT_AR UMETA(DisplayName = "AR"),
+	EAT_Sniper UMETA(DisplayName = "Sniper"),
+	EAT_Max UMETA(DisplayName = "DefaultMAX"),
+	
+};
+
 UCLASS()
 class SHOOTERVIDEOLEARN_API AShooterCharacter : public ACharacter
 {
@@ -167,6 +177,18 @@ private:
 	// Distance upward from the camera for the interp destination
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (AllowPrivateAccess = true))
 	float CameraInterpElevation;
+
+	// Map to keep track of ammo of the different ammo types
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item", meta = (AllowPrivateAccess = true))
+	TMap<EAmmoType, int32> AmmoMap;
+
+	// Starting amount of 9mm ammo
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item", meta = (AllowPrivateAccess = true))
+	int32 Starting9MMAmmo;
+
+	// Starting amount of AR ammo
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item", meta = (AllowPrivateAccess = true))
+	int32 StartingARAmmo;
 	
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
@@ -212,6 +234,9 @@ protected:
 
 	// Drops the currently equipped weapon and equips the TraceHitItem weapon
 	void SwapWeapon(AWeapon* WeaponToSwap);
+
+	// Initialize the ammo map with ammo values
+	void InitializeAmmoMap();
 
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
