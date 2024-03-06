@@ -16,10 +16,10 @@ AItem::AItem():
 	ItemRarity(EItemRarity::Eir_Common),
 	ItemState(EItemState::EIS_Pickup),
 	// Item interp variables
-	ZCurveTime(0.7f),
 	ItemInterpStartLocation(FVector::Zero()),
 	CameraTargetLocation(FVector::Zero()),
 	bInterping(false),
+	ZCurveTime(0.7f),
 	ItemInterpX(0.f),
 	ItemInterpY(0.f),
 	InterpInitialYawOffset(0.f)
@@ -233,7 +233,7 @@ void AItem::SetItemState(const EItemState State)
 	ItemState = State;
 	SetItemProperties(State);
 }
- 
+
 void AItem::StartItemCurve(AShooterCharacter* Char)
 {
 	// Store a handle to the Character

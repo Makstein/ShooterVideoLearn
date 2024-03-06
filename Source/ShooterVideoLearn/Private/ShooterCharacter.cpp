@@ -49,7 +49,9 @@ AShooterCharacter::AShooterCharacter() :
 	CameraInterpElevation(65.f),
 	// Starting ammo amounts
 	Starting9MMAmmo(50),
-	StartingARAmmo(150)
+	StartingARAmmo(150),
+	// Combat variables
+	CombatState(ECombatState::ECS_Unoccupied)
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -123,27 +125,25 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	// Jump
 	Input->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
 	Input->BindAction(JumpInputAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
 	// Moving
 	Input->BindAction(MoveInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterMove);
-
 	// Looking
 	Input->BindAction(LookInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterLook);
-
 	// Firing
 	Input->BindAction(FireInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterFire);
-
 	Input->BindAction(AimPressedAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterAim);
-
+	// Interaction
 	Input->BindAction(SelectInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterSelect);
+	// Reload
+	Input->BindAction(ReloadInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterReload);
 }
 
 void AShooterCharacter::CharacterFire(const FInputActionValue& Value)
 {
+	bFireButtonPressed = true;
 	if (Value.Get<float>() == 1)
 	{
-		bFireButtonPressed = true;
-		StartFireTimer();
+		FireWeapon();
 	}
 	else
 	{
@@ -175,6 +175,11 @@ void AShooterCharacter::CharacterSelect(const FInputActionValue& Value)
 	else
 	{
 	}
+}
+
+void AShooterCharacter::CharacterReload(const FInputActionValue& Value)
+{
+	ReloadWeapon();
 }
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation)
@@ -252,61 +257,38 @@ void AShooterCharacter::FinishCrosshairBulletFire()
 
 void AShooterCharacter::StartFireTimer()
 {
-	if (bShouldFire)
-	{
-		FireWeapon();
-		bShouldFire = false;
-		GetWorldTimerManager().SetTimer(AutoFireTimer, this, &AShooterCharacter::AutoFireReset, AutomaticFireRate);
-	}
+	CombatState = ECombatState::ECS_FireTimerInProgress;
+	GetWorldTimerManager().SetTimer(AutoFireTimer, this, &AShooterCharacter::AutoFireReset, AutomaticFireRate);
 }
 
 void AShooterCharacter::FireWeapon()
 {
-	if (FireSound)
+	if (EquippedWeapon == nullptr) return;
+	if (CombatState != ECombatState::ECS_Unoccupied) return;
+
+	if (!WeaponHasAmmo()) return;
+
+	PlayFireSound();
+	SendBullet();
+	PlayGunFireMontage();
+	StartFireTimer();
+
+	if (EquippedWeapon)
 	{
-		UGameplayStatics::PlaySound2D(this, FireSound);
+		EquippedWeapon->DecrementAmmo();
 	}
-	if (const USkeletalMeshSocket* BarrelSocket = GetMesh()->GetSocketByName("BarrelSocket"))
-	{
-		const FTransform BarrelTransform = BarrelSocket->GetSocketTransform(GetMesh());
-
-		if (MuzzleFlash)
-		{
-			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash, BarrelTransform);
-		}
-
-		// 在教程基础上更改，无论是否碰撞，都应产生子弹轨迹
-		FVector BeamEnd;
-		if (GetBeamEndLocation(BarrelTransform.GetLocation(), BeamEnd))
-		{
-			if (ImpactParticles)
-			{
-				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, BeamEnd);
-			}
-		}
-
-		if (UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(), BeamParticles, BarrelTransform))
-		{
-			Beam->SetVectorParameter(FName("Target"), BeamEnd);
-		}
-	}
-
-	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && HipFireMontage)
-	{
-		AnimInstance->Montage_Play(HipFireMontage);
-		AnimInstance->Montage_JumpToSection(FName("StartFire"));
-	}
-
-	StartCrosshairBulletFire();
 }
 
 void AShooterCharacter::AutoFireReset()
 {
-	bShouldFire = true;
-	if (bFireButtonPressed)
+	CombatState = ECombatState::ECS_Unoccupied;
+	if (WeaponHasAmmo() && bFireButtonPressed)
 	{
-		StartFireTimer();
+		FireWeapon();
+	}
+	else
+	{
+		// Reloading
 	}
 }
 
@@ -414,6 +396,69 @@ void AShooterCharacter::InitializeAmmoMap()
 {
 	AmmoMap.Add(EAmmoType::EAT_9MM, Starting9MMAmmo);
 	AmmoMap.Add(EAmmoType::EAT_AR, StartingARAmmo);
+}
+
+bool AShooterCharacter::WeaponHasAmmo()
+{
+	if (EquippedWeapon == nullptr) return false;
+
+	return EquippedWeapon->GetAmmo() > 0;
+}
+
+void AShooterCharacter::PlayFireSound()
+{
+	// Play FireSound
+	if (FireSound)
+	{
+		UGameplayStatics::PlaySound2D(this, FireSound);
+	}
+}
+
+void AShooterCharacter::SendBullet()
+{
+	// Send bullet
+	if (const USkeletalMeshSocket* BarrelSocket = EquippedWeapon->GetItemMesh()->GetSocketByName("BarrelSocket"))
+	{
+		const FTransform BarrelTransform = BarrelSocket->GetSocketTransform(EquippedWeapon->GetItemMesh());
+
+		if (MuzzleFlash)
+		{
+			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash, BarrelTransform);
+		}
+
+		// Weather have collision or not, there should have bullet trace, a little difference from the tutorial
+		FVector BeamEnd;
+		if (GetBeamEndLocation(BarrelTransform.GetLocation(), BeamEnd))
+		{
+			if (ImpactParticles)
+			{
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, BeamEnd);
+			}
+		}
+
+		if (UParticleSystemComponent* Beam = UGameplayStatics::SpawnEmitterAtLocation(
+			GetWorld(), BeamParticles, BarrelTransform))
+		{
+			Beam->SetVectorParameter(FName("Target"), BeamEnd);
+		}
+
+		StartCrosshairBulletFire();
+	}
+}
+
+void AShooterCharacter::PlayGunFireMontage()
+{
+	// Play hip fire montage
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && HipFireMontage)
+	{
+		AnimInstance->Montage_Play(HipFireMontage);
+		AnimInstance->Montage_JumpToSection(FName("StartFire"));
+	}
+}
+
+void AShooterCharacter::ReloadWeapon()
+{
+	
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)

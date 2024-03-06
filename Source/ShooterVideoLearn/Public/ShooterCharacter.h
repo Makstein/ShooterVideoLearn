@@ -17,7 +17,18 @@ enum class EAmmoType: uint8
 	EAT_AR UMETA(DisplayName = "AR"),
 	EAT_Sniper UMETA(DisplayName = "Sniper"),
 	EAT_Max UMETA(DisplayName = "DefaultMAX"),
-	
+};
+
+UENUM(BlueprintType)
+enum class ECombatState: uint8
+{
+	ECS_Unoccupied UMETA(DisplayName = "Unoccupied"),
+	ECS_FireTimerInProgress UMETA(DisplayName = "FireTimerInProgress"),
+	ECS_Reloading UMETA(DisplayName = "Reloading"),
+	ECS_Equipping UMETA(DisplayName = "Equipping"),
+	ECS_UnEquipping UMETA(DisplayName = "UnEquipping"),
+
+	ECS_Max UMETA(DisplayName = "DefaultMAX"),
 };
 
 UCLASS()
@@ -152,6 +163,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
 	UInputAction* SelectInputAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
+	UInputAction* ReloadInputAction;
+
 	// True if should trace for items every frame
 	bool bShouldTraceForItems;
 
@@ -189,7 +203,10 @@ private:
 	// Starting amount of AR ammo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item", meta = (AllowPrivateAccess = true))
 	int32 StartingARAmmo;
-	
+
+	// Combat state, can only fire or reload if not occupied
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = true))
+	ECombatState CombatState;
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -200,6 +217,8 @@ protected:
 	void CharacterAim(const FInputActionValue& Value);
 
 	void CharacterSelect(const FInputActionValue& Value);
+
+	void CharacterReload(const FInputActionValue& Value);
 
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
 
@@ -237,6 +256,14 @@ protected:
 
 	// Initialize the ammo map with ammo values
 	void InitializeAmmoMap();
+
+	// Fire weapon functions
+	bool WeaponHasAmmo();
+	void PlayFireSound();
+	void SendBullet();
+	void PlayGunFireMontage();
+
+	void ReloadWeapon();
 
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
