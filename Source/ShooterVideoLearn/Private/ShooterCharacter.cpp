@@ -8,13 +8,12 @@
 #include "EnhancedInputComponent.h"
 #include "item.h"
 #include "Weapon.h"
-#include "Components/BoxComponent.h"
-#include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "ShooterVideoLearn/AmmoType.h"
 #include "Sound/SoundCue.h"
 
 // Sets default values
@@ -282,13 +281,15 @@ void AShooterCharacter::FireWeapon()
 void AShooterCharacter::AutoFireReset()
 {
 	CombatState = ECombatState::ECS_Unoccupied;
-	if (WeaponHasAmmo() && bFireButtonPressed)
+	if (!bFireButtonPressed) return;
+	if (WeaponHasAmmo())
 	{
 		FireWeapon();
 	}
 	else
 	{
 		// Reloading
+		ReloadWeapon();
 	}
 }
 
@@ -458,7 +459,65 @@ void AShooterCharacter::PlayGunFireMontage()
 
 void AShooterCharacter::ReloadWeapon()
 {
+	if (CombatState != ECombatState::ECS_Unoccupied) return;
+	if (EquippedWeapon == nullptr) return;
+	// Do we have the ammo of correct type?
+	if (CarryingAmmo())
+	{
+		CombatState = ECombatState::ECS_Reloading;
+		const FName MontageSection(TEXT("Reload SMG"));
+		// Play Reload Montage
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && ReloadMontage)
+		{
+			AnimInstance->Montage_Play(ReloadMontage);
+			AnimInstance->Montage_JumpToSection(EquippedWeapon->GetReloadMontageSection());
+		}
+	}
+}
+
+void AShooterCharacter::FinishReloading()
+{
+	CombatState = ECombatState::ECS_Unoccupied;
+
+	if (EquippedWeapon == nullptr) return;
+
+	const auto AmmoType{ EquippedWeapon->GetAmmoType() };
 	
+	// Update the ammo map
+	if (AmmoMap.Contains(AmmoType))
+	{
+		int32 CarriedAmmo = AmmoMap[AmmoType];
+		const int32 MagEmptySpace = EquippedWeapon->GetMagazineCapacity() - EquippedWeapon->GetAmmo();
+		if (MagEmptySpace > CarriedAmmo)
+		{
+			EquippedWeapon->ReloadAmmo(CarriedAmmo);
+			CarriedAmmo = 0;
+			AmmoMap.Add(AmmoType, CarriedAmmo); // TMap make sure the key is unique
+		}
+		else
+		{
+			EquippedWeapon->ReloadAmmo(MagEmptySpace);
+			CarriedAmmo -= MagEmptySpace;
+			AmmoMap.Add(AmmoType, CarriedAmmo);
+		}
+	}
+	
+	if (bFireButtonPressed)
+	{
+		FireWeapon();
+	}
+}
+
+bool AShooterCharacter::CarryingAmmo()
+{
+	if (EquippedWeapon == nullptr) return false;
+
+	if (const auto AmmoType = EquippedWeapon->GetAmmoType(); AmmoMap.Contains(AmmoType))
+	{
+		return AmmoMap[AmmoType] > 0;
+	}
+
+	return false;
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)

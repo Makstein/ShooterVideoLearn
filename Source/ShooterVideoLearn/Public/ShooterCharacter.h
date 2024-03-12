@@ -7,17 +7,9 @@
 #include "InputMappingContext.h"
 #include "ShooterCharacter.generated.h"
 
+enum class EAmmoType : uint8;
 class AWeapon;
 class AItem;
-
-UENUM(BlueprintType)
-enum class EAmmoType: uint8
-{
-	EAT_9MM UMETA(DisplayName = "9mm"),
-	EAT_AR UMETA(DisplayName = "AR"),
-	EAT_Sniper UMETA(DisplayName = "Sniper"),
-	EAT_Max UMETA(DisplayName = "DefaultMAX"),
-};
 
 UENUM(BlueprintType)
 enum class ECombatState: uint8
@@ -205,8 +197,12 @@ private:
 	int32 StartingARAmmo;
 
 	// Combat state, can only fire or reload if not occupied
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
 	ECombatState CombatState;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UAnimMontage* ReloadMontage;
+
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -265,6 +261,11 @@ protected:
 
 	void ReloadWeapon();
 
+	UFUNCTION(BlueprintCallable)
+	void FinishReloading();
+
+	bool CarryingAmmo();
+	
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
