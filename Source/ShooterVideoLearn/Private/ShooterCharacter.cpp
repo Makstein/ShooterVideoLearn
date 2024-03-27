@@ -265,6 +265,10 @@ void AShooterCharacter::FireWeapon()
 	if (EquippedWeapon == nullptr) return;
 	if (CombatState != ECombatState::ECS_Unoccupied) return;
 
+	if (!WeaponHasAmmo())
+	{
+		ReloadWeapon();
+	}
 	if (!WeaponHasAmmo()) return;
 
 	PlayFireSound();
