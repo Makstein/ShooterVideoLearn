@@ -203,6 +203,14 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
 	UAnimMontage* ReloadMontage;
 
+	// Transform of the clip when we first grab the clip during reloading
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	FTransform ClipTransform;
+
+	// Scene component to attach to the Character's hand during reloading
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	USceneComponent* HandSceneComponent;
+	
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -265,6 +273,13 @@ protected:
 	void FinishReloading();
 
 	bool CarryingAmmo();
+
+	// Called from Animation Blueprint with Grab Clip notify
+	UFUNCTION(BlueprintCallable)
+	void GrabClip();
+
+	UFUNCTION(BlueprintCallable)
+	void ReleaseClip();
 	
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

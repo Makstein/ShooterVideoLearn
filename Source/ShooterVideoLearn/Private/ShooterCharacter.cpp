@@ -485,8 +485,8 @@ void AShooterCharacter::FinishReloading()
 
 	if (EquippedWeapon == nullptr) return;
 
-	const auto AmmoType{ EquippedWeapon->GetAmmoType() };
-	
+	const auto AmmoType{EquippedWeapon->GetAmmoType()};
+
 	// Update the ammo map
 	if (AmmoMap.Contains(AmmoType))
 	{
@@ -505,7 +505,7 @@ void AShooterCharacter::FinishReloading()
 			AmmoMap.Add(AmmoType, CarriedAmmo);
 		}
 	}
-	
+
 	if (bFireButtonPressed)
 	{
 		FireWeapon();
@@ -522,6 +522,25 @@ bool AShooterCharacter::CarryingAmmo()
 	}
 
 	return false;
+}
+
+void AShooterCharacter::GrabClip()
+{
+	if (EquippedWeapon == nullptr) return;
+
+	const int32 ClipBoneIndex{EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName())};
+	ClipTransform = EquippedWeapon->GetItemMesh()->GetBoneTransform(ClipBoneIndex);
+
+	const FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, true);
+	HandSceneComponent->AttachToComponent(GetMesh(), AttachmentRules, FName(TEXT("Hand_L")));
+	HandSceneComponent->SetWorldTransform(ClipTransform);
+
+	EquippedWeapon->SetMovingClip(true);
+}
+
+void AShooterCharacter::ReleaseClip()
+{
+	EquippedWeapon->SetMovingClip(false);
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)
