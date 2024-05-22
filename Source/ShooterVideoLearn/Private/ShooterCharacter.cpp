@@ -72,6 +72,8 @@ AShooterCharacter::AShooterCharacter() :
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.0f, 0.f);
 	GetCharacterMovement()->AirControl = 0.33f;
 	GetCharacterMovement()->JumpZVelocity = 700.f;
+
+	HandSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("HandSceneComp"));
 }
 
 // Called when the game starts or when spawned
@@ -167,12 +169,11 @@ void AShooterCharacter::CharacterSelect(const FInputActionValue& Value)
 	{
 		if (!TraceHitItem) return;
 
-		// const auto TraceHitWeapon = Cast<AWeapon>(TraceHitItem);
-		// SwapWeapon(TraceHitWeapon);
 		TraceHitItem->StartItemCurve(this);
-	}
-	else
-	{
+		if (TraceHitItem->GetPickupSound())
+		{
+			UGameplayStatics::PlaySound2D(this, TraceHitItem->GetPickupSound());
+		}
 	}
 }
 
@@ -466,7 +467,7 @@ void AShooterCharacter::ReloadWeapon()
 	if (CombatState != ECombatState::ECS_Unoccupied) return;
 	if (EquippedWeapon == nullptr) return;
 	// Do we have the ammo of correct type?
-	if (CarryingAmmo())
+	if (CarryingAmmo() && !EquippedWeapon->ClipIsFull())
 	{
 		CombatState = ECombatState::ECS_Reloading;
 		const FName MontageSection(TEXT("Reload SMG"));
@@ -527,6 +528,7 @@ bool AShooterCharacter::CarryingAmmo()
 void AShooterCharacter::GrabClip()
 {
 	if (EquippedWeapon == nullptr) return;
+	if (HandSceneComponent == nullptr) return;
 
 	const int32 ClipBoneIndex{EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName())};
 	ClipTransform = EquippedWeapon->GetItemMesh()->GetBoneTransform(ClipBoneIndex);
@@ -572,10 +574,14 @@ FVector AShooterCharacter::GetCameraInterpLocation()
 
 void AShooterCharacter::GetPickupItem(AItem* Item)
 {
+	if (Item->GetEquipSound())
+	{
+		UGameplayStatics::PlaySound2D(this, Item->GetEquipSound());
+	}
+	
 	if (const auto Weapon = Cast<AWeapon>(Item))
 	{
 		SwapWeapon(Weapon);
-		return;
 	}
 }
 
