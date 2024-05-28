@@ -11,15 +11,16 @@ UShooterAnimInstance::UShooterAnimInstance() :
 	MovementOffsetYaw(0.f),
 	LastMovementOffsetYaw(0.f),
 	bAiming(false),
-	CharacterYaw(0.f),
-	CharacterYawLastFrame(0.f),
+	TIPCharacterYaw(0.f),
+	TIPCharacterYawLastFrame(0.f),
 	RootYawOffset(0.f),
 	RotationCurve(0),
-	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip)
+	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip), CharacterYaw(0),
+	CharacterYawLastFrame(0), YawDelta(0)
 {
 }
 
-void UShooterAnimInstance::UpdateAnimationProperties(float DeltaTime)
+void UShooterAnimInstance::UpdateAnimationProperties(const float DeltaTime)
 {
 	if (ShooterCharacter == nullptr) ShooterCharacter = Cast<AShooterCharacter>(TryGetPawnOwner());
 	if (ShooterCharacter == nullptr) return;
@@ -63,6 +64,7 @@ void UShooterAnimInstance::UpdateAnimationProperties(float DeltaTime)
 	}
 
 	TurnInPlace();
+	Lean(DeltaTime);
 }
 
 void UShooterAnimInstance::NativeInitializeAnimation()
@@ -76,21 +78,21 @@ void UShooterAnimInstance::TurnInPlace()
 
 	Pitch = ShooterCharacter->GetBaseAimRotation().Pitch;
 
-	if (Speed > 0)
+	if (Speed > 0 || bIsInAir)
 	{
 		// No need to turn in place because character is moving
 		RootYawOffset = 0.f;
-		CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-		CharacterYawLastFrame = CharacterYaw;
+		TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+		TIPCharacterYawLastFrame = TIPCharacterYaw;
 		RotationCurve = 0.f;
 		RotationCurveValueLastFrame = 0.f;
 	}
 	else
 	{
-		CharacterYawLastFrame = CharacterYaw;
-		CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-		const float YawDelta{CharacterYaw - CharacterYawLastFrame};
-		RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - YawDelta);
+		TIPCharacterYawLastFrame = TIPCharacterYaw;
+		TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+		const float TIPYawDelta{TIPCharacterYaw - TIPCharacterYawLastFrame};
+		RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - TIPYawDelta);
 
 		// 1.0 if turning, 0.0 if not
 		if (const float Turning{GetCurveValue(TEXT("Turning"))}; Turning > 0)
@@ -108,5 +110,20 @@ void UShooterAnimInstance::TurnInPlace()
 				RootYawOffset > 0 ? RootYawOffset -= Excess : RootYawOffset += Excess;
 			}
 		}
+
+		if (GEngine) GEngine->AddOnScreenDebugMessage(1, -1, FColor::White, FString::Printf(TEXT("RootYawOffset: %f"), RootYawOffset));
 	}
+}
+
+void UShooterAnimInstance::Lean(const float DeltaTime)
+{
+	if (ShooterCharacter == nullptr) return;
+	CharacterYawLastFrame = CharacterYaw;
+	CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+
+	const float Target{(CharacterYaw - CharacterYawLastFrame) / DeltaTime};
+	const float Interp{FMath::FInterpTo(YawDelta, Target, DeltaTime, 6.f)};
+	YawDelta = FMath::Clamp(Interp, -90.f, 90.f);
+
+	if (GEngine) GEngine->AddOnScreenDebugMessage(2, -1, FColor::Cyan, FString::Printf(TEXT("YawDelta: %f"), YawDelta));
 }

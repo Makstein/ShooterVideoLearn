@@ -36,6 +36,9 @@ public:
 protected:
 	void TurnInPlace();
 
+	// Handle the calculation for leaning while running
+	void Lean(const float DeltaTime);
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	class AShooterCharacter* ShooterCharacter;
@@ -46,7 +49,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	bool bIsInAir;
 
-	// Whether or not the character is moving
+	// Whether the character is moving
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	bool bIsAccelerating;
 
@@ -59,11 +62,11 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	bool bAiming;
 
-	// Character yaw this frame
-	float CharacterYaw;
+	// Character yaw this frame, only updated when standing still and not in air
+	float TIPCharacterYaw;
 
 	// Character yaw last frame
-	float CharacterYawLastFrame;
+	float TIPCharacterYawLastFrame;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn in place", meta = (AllowPrivateAccess = "true"))
 	float RootYawOffset;
@@ -83,4 +86,11 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn in place", meta = (AllowPrivateAccess = "true"))
 	EOffsetState OffsetState;
+
+	float CharacterYaw;
+
+	float CharacterYawLastFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Lean, meta = (AllowPrivateAccess = "true"))
+	float YawDelta;
 };
