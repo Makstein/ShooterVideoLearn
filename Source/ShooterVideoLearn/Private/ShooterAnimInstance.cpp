@@ -15,17 +15,26 @@ UShooterAnimInstance::UShooterAnimInstance() :
 	TIPCharacterYawLastFrame(0.f),
 	RootYawOffset(0.f),
 	RotationCurve(0),
-	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip), CharacterYaw(0),
-	CharacterYawLastFrame(0), YawDelta(0)
+	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip),
+	CharacterRotation(FRotator(0.f)),
+	CharacterRotationLastFrame(FRotator(0.f)), YawDelta(0), bCrouching(false), RecoilWeight(1.0f),
+	bTurningInPlace(false)
 {
 }
 
 void UShooterAnimInstance::UpdateAnimationProperties(const float DeltaTime)
 {
-	if (ShooterCharacter == nullptr) ShooterCharacter = Cast<AShooterCharacter>(TryGetPawnOwner());
-	if (ShooterCharacter == nullptr) return;
+	if (ShooterCharacter == nullptr)
+	{
+		ShooterCharacter = Cast<AShooterCharacter>(TryGetPawnOwner());
+	}
+	if (ShooterCharacter == nullptr)
+	{
+		return;
+	}
 
 	bReloading = ShooterCharacter->GetCombatState() == ECombatState::ECS_Reloading;
+	bCrouching = ShooterCharacter->GetCrouching();
 
 	FVector Velocity = ShooterCharacter->GetVelocity();
 	Velocity.Z = 0;
@@ -74,7 +83,10 @@ void UShooterAnimInstance::NativeInitializeAnimation()
 
 void UShooterAnimInstance::TurnInPlace()
 {
-	if (ShooterCharacter == nullptr) return;
+	if (ShooterCharacter == nullptr)
+	{
+		return;
+	}
 
 	Pitch = ShooterCharacter->GetBaseAimRotation().Pitch;
 
@@ -91,39 +103,72 @@ void UShooterAnimInstance::TurnInPlace()
 	{
 		TIPCharacterYawLastFrame = TIPCharacterYaw;
 		TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-		const float TIPYawDelta{TIPCharacterYaw - TIPCharacterYawLastFrame};
+		const float TIPYawDelta{ TIPCharacterYaw - TIPCharacterYawLastFrame };
 		RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - TIPYawDelta);
 
 		// 1.0 if turning, 0.0 if not
-		if (const float Turning{GetCurveValue(TEXT("Turning"))}; Turning > 0)
+		if (const float Turning{ GetCurveValue(TEXT("Turning")) }; Turning > 0)
 		{
+			bTurningInPlace = true;
 			RotationCurveValueLastFrame = RotationCurve;
 			RotationCurve = GetCurveValue(TEXT("Rotation"));
-			const float DeltaRotation{RotationCurve - RotationCurveValueLastFrame};
+			const float DeltaRotation{ RotationCurve - RotationCurveValueLastFrame };
 
 			// RootYawOffset > 0 means turning to the left
 			// RootYawOffset < 0 means turning to the right
 			RootYawOffset > 0 ? RootYawOffset -= DeltaRotation : RootYawOffset += DeltaRotation;
-			if (const float ABSRootYawOffset{FMath::Abs(RootYawOffset)}; ABSRootYawOffset > 90.f)
+			if (const float ABSRootYawOffset{ FMath::Abs(RootYawOffset) }; ABSRootYawOffset > 90.f)
 			{
-				const float Excess{ABSRootYawOffset - 90.f};
+				const float Excess{ ABSRootYawOffset - 90.f };
 				RootYawOffset > 0 ? RootYawOffset -= Excess : RootYawOffset += Excess;
 			}
 		}
+		else
+		{
+			bTurningInPlace = false;
+		}
 
-		if (GEngine) GEngine->AddOnScreenDebugMessage(1, -1, FColor::White, FString::Printf(TEXT("RootYawOffset: %f"), RootYawOffset));
+		if (bTurningInPlace)
+		{
+			RecoilWeight = bReloading ? 1.f : 0.f;
+		}
+		else
+		{
+			if (bCrouching)
+			{
+				RecoilWeight = bReloading ? 1.f : 0.1f;
+			}
+			else
+			{
+				RecoilWeight = bAiming ? 1.f : 0.5f;
+			}
+		}
 	}
 }
 
 void UShooterAnimInstance::Lean(const float DeltaTime)
 {
-	if (ShooterCharacter == nullptr) return;
-	CharacterYawLastFrame = CharacterYaw;
-	CharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
+	if (ShooterCharacter == nullptr)
+	{
+		return;
+	}
+	CharacterRotationLastFrame = CharacterRotation;
+	CharacterRotation = ShooterCharacter->GetActorRotation();
 
-	const float Target{(CharacterYaw - CharacterYawLastFrame) / DeltaTime};
-	const float Interp{FMath::FInterpTo(YawDelta, Target, DeltaTime, 6.f)};
+	const FRotator Delta{ UKismetMathLibrary::NormalizedDeltaRotator(CharacterRotation, CharacterRotationLastFrame) };
+
+	const double Target{ Delta.Yaw / DeltaTime };
+	const double Interp{ FMath::FInterpTo(YawDelta, Target, DeltaTime, 6.f) };
 	YawDelta = FMath::Clamp(Interp, -90.f, 90.f);
 
-	if (GEngine) GEngine->AddOnScreenDebugMessage(2, -1, FColor::Cyan, FString::Printf(TEXT("YawDelta: %f"), YawDelta));
+	// if (GEngine)
+	// {
+	// 	GEngine->
+	// 		AddOnScreenDebugMessage(2, -1, FColor::Cyan, FString::Printf(TEXT("YawDelta: %lf"), YawDelta));
+	// }
+	// if (GEngine)
+	// {
+	// 	GEngine->AddOnScreenDebugMessage(3, -1, FColor::Cyan,
+	// 	                                 FString::Printf(TEXT("Delta.Yaw: %lf"), Delta.Yaw));
+	// }
 }

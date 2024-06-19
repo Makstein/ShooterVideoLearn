@@ -50,7 +50,8 @@ AShooterCharacter::AShooterCharacter() :
 	Starting9MMAmmo(50),
 	StartingARAmmo(150),
 	// Combat variables
-	CombatState(ECombatState::ECS_Unoccupied)
+	CombatState(ECombatState::ECS_Unoccupied),
+	bCrouching(false)
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -137,6 +138,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	Input->BindAction(SelectInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterSelect);
 	// Reload
 	Input->BindAction(ReloadInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterReload);
+	// Crouch
+	Input->BindAction(CrouchInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterCrouch);
 }
 
 void AShooterCharacter::CharacterFire(const FInputActionValue& Value)
@@ -180,6 +183,16 @@ void AShooterCharacter::CharacterSelect(const FInputActionValue& Value)
 void AShooterCharacter::CharacterReload(const FInputActionValue& Value)
 {
 	ReloadWeapon();
+}
+
+void AShooterCharacter::CharacterCrouch(const FInputActionValue& Value)
+{
+	if (GetCharacterMovement()->IsFalling()) return;
+	
+	if (Value.Get<float>() == 1)
+	{
+		bCrouching = !bCrouching;
+	}
 }
 
 bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation)

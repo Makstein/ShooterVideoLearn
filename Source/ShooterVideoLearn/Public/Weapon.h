@@ -27,10 +27,10 @@ public:
 	AWeapon();
 
 	virtual void Tick(float DeltaSeconds) override;
-	
+
 protected:
 	void StopFalling();
-	
+
 private:
 	FTimerHandle ThrowWeaponTimer;
 	float ThrowWeaponTime;
@@ -57,7 +57,7 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Properties", meta = (AllowPrivateAccess = "true"))
 	FName ClipBoneName;
-	
+
 public:
 	// Add an impulse to the Weapon
 	void ThrowWeapon();
@@ -74,7 +74,7 @@ public:
 	FORCEINLINE FName GetClipBoneName() const { return ClipBoneName; }
 
 	FORCEINLINE void SetMovingClip(const bool Move) { bMovingClip = Move; }
-	
+
 	void ReloadAmmo(int32 Amount);
 
 	bool ClipIsFull();

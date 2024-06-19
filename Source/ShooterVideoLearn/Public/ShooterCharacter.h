@@ -157,6 +157,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
 	UInputAction* ReloadInputAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
+	UInputAction* CrouchInputAction;
 
 	// True if should trace for items every frame
 	bool bShouldTraceForItems;
@@ -210,6 +213,9 @@ private:
 	// Scene component to attach to the Character's hand during reloading
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
 	USceneComponent* HandSceneComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
+	bool bCrouching;
 	
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
@@ -223,6 +229,8 @@ protected:
 	void CharacterSelect(const FInputActionValue& Value);
 
 	void CharacterReload(const FInputActionValue& Value);
+
+	void CharacterCrouch(const FInputActionValue& Value);
 
 	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
 
@@ -298,4 +306,5 @@ public:
 	void GetPickupItem(AItem* Item);
 
 	FORCEINLINE ECombatState GetCombatState() const { return CombatState; }
+	FORCEINLINE bool GetCrouching() const { return bCrouching; }
 };
