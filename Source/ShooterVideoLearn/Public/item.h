@@ -63,7 +63,7 @@ protected:
 	// Sets the ActiveStars based on the rarity
 	void SetActiveStars();
 
-	void SetItemProperties(const EItemState State);
+	virtual void SetItemProperties(const EItemState State);
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -129,8 +129,8 @@ private:
 
 	// Duration of the curve and timer
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
-    float ZCurveTime;
-	
+	float ZCurveTime;
+
 	// Plays when we start interping
 	FTimerHandle ItemInterpTimer;
 
@@ -154,7 +154,7 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	USoundCue* EquipSound;
-	
+
 public:
 	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }
 	FORCEINLINE USphereComponent* GetAreaSphere() const { return AreaSphere; }
@@ -164,6 +164,7 @@ public:
 	FORCEINLINE USkeletalMeshComponent* GetItemMesh() const { return ItemMesh; }
 	FORCEINLINE USoundCue* GetPickupSound() const { return PickupSound; }
 	FORCEINLINE USoundCue* GetEquipSound() const { return EquipSound; }
+	FORCEINLINE int32 GetItemCount() const { return ItemCount; }
 
 	// Called from ShooterCharacter class
 	void StartItemCurve(AShooterCharacter* Char);

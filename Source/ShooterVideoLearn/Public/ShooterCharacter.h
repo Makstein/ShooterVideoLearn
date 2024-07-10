@@ -7,6 +7,7 @@
 #include "InputMappingContext.h"
 #include "ShooterCharacter.generated.h"
 
+class AAmmo;
 enum class EAmmoType : uint8;
 class AWeapon;
 class AItem;
@@ -91,8 +92,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
 	bool bAiming;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
 	float CameraDefaultFOV; // 用于瞄准时的缩放
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
 	float CameraZoomedFOV;
 
 	float CameraCurrentFOV;
@@ -157,7 +160,7 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
 	UInputAction* ReloadInputAction;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess = true))
 	UInputAction* CrouchInputAction;
 
@@ -216,7 +219,29 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
 	bool bCrouching;
-	
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float BaseMovementSpeed;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float CrouchMovementSpeed;
+
+	float CurrentCapsuleHalfHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float StandingCapsuleHalfHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float CrouchingCapsuleHalfHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float BaseGroundFriction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float CrouchingGroundFriction;
+
+	bool bAimingButtonPressed;
+
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -288,7 +313,17 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void ReleaseClip();
-	
+
+	virtual void Jump() override;
+
+	// When crouching/standing the capsule half height should be changed
+	void InterpCapsuleHalfHeight(float DeltaTime);
+
+	void Aim();
+	void StopAim();
+
+	void PickupAmmo(AAmmo* Ammo);
+
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }

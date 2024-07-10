@@ -2,12 +2,14 @@
 
 #include "ShooterCharacter.h"
 
+#include "Ammo.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "item.h"
 #include "Weapon.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -22,11 +24,11 @@ AShooterCharacter::AShooterCharacter() :
 	BaseLookUpRate(.5f),
 	HipTurnRate(1.f),
 	HipLookUpRate(1.f),
-	AimingTurnRate(.2f),
-	AimingLookUpRate(.2f),
+	AimingTurnRate(.6f),
+	AimingLookUpRate(.6f),
 	bAiming(false),
 	CameraDefaultFOV(0.f),
-	CameraZoomedFOV(35.f),
+	CameraZoomedFOV(25.f),
 	CameraCurrentFOV(0.f),
 	ZoomInterpSpeed(20.f),
 	// 准星散布
@@ -51,7 +53,14 @@ AShooterCharacter::AShooterCharacter() :
 	StartingARAmmo(150),
 	// Combat variables
 	CombatState(ECombatState::ECS_Unoccupied),
-	bCrouching(false)
+	bCrouching(false),
+	BaseMovementSpeed(650.f),
+	CrouchMovementSpeed(300.f),
+	StandingCapsuleHalfHeight(88.f),
+	CrouchingCapsuleHalfHeight(40.f),
+	BaseGroundFriction(2.f),
+	CrouchingGroundFriction(100.f),
+	bAimingButtonPressed(false)
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -104,6 +113,8 @@ void AShooterCharacter::BeginPlay()
 	EquipWeapon(SpawnDefaultWeapon());
 
 	InitializeAmmoMap();
+
+	GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
 }
 
 // Called every frame
@@ -115,6 +126,8 @@ void AShooterCharacter::Tick(float DeltaTime)
 	SetLookRates();
 	CalculateCrosshairSpread(DeltaTime);
 	TraceForItems();
+	// Interp capsule half height based on crouching/standing
+	InterpCapsuleHalfHeight(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -125,7 +138,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 
 	// Jump
-	Input->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
+	Input->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::Jump);
 	Input->BindAction(JumpInputAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	// Moving
 	Input->BindAction(MoveInputAction, ETriggerEvent::Triggered, this, &AShooterCharacter::CharacterMove);
@@ -159,7 +172,11 @@ void AShooterCharacter::CharacterAim(const FInputActionValue& Value)
 {
 	if (Value.Get<float>() == 1)
 	{
-		bAiming = !bAiming;
+		bAimingButtonPressed = !bAimingButtonPressed;
+		if (CombatState != ECombatState::ECS_Reloading)
+		{
+			bAimingButtonPressed ? Aim() : StopAim();
+		}
 	}
 
 	// UE_LOG(LogTemp, Warning, TEXT("%f"), Value.Get<float>())
@@ -188,10 +205,13 @@ void AShooterCharacter::CharacterReload(const FInputActionValue& Value)
 void AShooterCharacter::CharacterCrouch(const FInputActionValue& Value)
 {
 	if (GetCharacterMovement()->IsFalling()) return;
-	
+
 	if (Value.Get<float>() == 1)
 	{
 		bCrouching = !bCrouching;
+
+		GetCharacterMovement()->MaxWalkSpeed = bCrouching ? CrouchMovementSpeed : BaseMovementSpeed;
+		GetCharacterMovement()->GroundFriction = bCrouching ? CrouchingGroundFriction : BaseGroundFriction;
 	}
 }
 
@@ -204,7 +224,7 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 
 	FHitResult WeaponTraceHit;
 	const FVector WeaponTraceStart = MuzzleSocketLocation;
-	const FVector StartToEnd{OutBeamLocation - MuzzleSocketLocation};
+	const FVector StartToEnd{ OutBeamLocation - MuzzleSocketLocation };
 	// 防止未检测到
 	const FVector WeaponTraceEnd = MuzzleSocketLocation + StartToEnd * 1.25f;
 	GetWorld()->LineTraceSingleByChannel(WeaponTraceHit, WeaponTraceStart, WeaponTraceEnd, ECC_Visibility);
@@ -232,9 +252,9 @@ void AShooterCharacter::SetLookRates()
 
 void AShooterCharacter::CalculateCrosshairSpread(float DeltaTime)
 {
-	const FVector2D WalkSpeedRange{0.f, 600.f};
-	const FVector2D VelocityRange{0.f, 1.f};
-	FVector Velocity{GetVelocity()};
+	const FVector2D WalkSpeedRange{ 0.f, 600.f };
+	const FVector2D VelocityRange{ 0.f, 1.f };
+	FVector Velocity{ GetVelocity() };
 	Velocity.Z = 0.f;
 
 	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityRange, Velocity.Size());
@@ -328,8 +348,8 @@ bool AShooterCharacter::TraceUnderCrosshairs(FHitResult& OutHitResult)
 	                                             CrosshairWorldPosition,
 	                                             CrosshairWorldDirection))
 	{
-		const FVector Start{CrosshairWorldPosition};
-		const FVector End{CrosshairWorldPosition + CrosshairWorldDirection * 50000.f};
+		const FVector Start{ CrosshairWorldPosition };
+		const FVector End{ CrosshairWorldPosition + CrosshairWorldDirection * 50000.f };
 		GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECC_Visibility);
 
 		if (OutHitResult.bBlockingHit)
@@ -479,9 +499,16 @@ void AShooterCharacter::ReloadWeapon()
 {
 	if (CombatState != ECombatState::ECS_Unoccupied) return;
 	if (EquippedWeapon == nullptr) return;
+	
 	// Do we have the ammo of correct type?
 	if (CarryingAmmo() && !EquippedWeapon->ClipIsFull())
 	{
+		if (bAiming)
+		{
+			bAiming = false;
+			GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+		}
+		
 		CombatState = ECombatState::ECS_Reloading;
 		const FName MontageSection(TEXT("Reload SMG"));
 		// Play Reload Montage
@@ -497,9 +524,14 @@ void AShooterCharacter::FinishReloading()
 {
 	CombatState = ECombatState::ECS_Unoccupied;
 
+	if (bAimingButtonPressed)
+	{
+		Aim();
+	}
+
 	if (EquippedWeapon == nullptr) return;
 
-	const auto AmmoType{EquippedWeapon->GetAmmoType()};
+	const auto AmmoType{ EquippedWeapon->GetAmmoType() };
 
 	// Update the ammo map
 	if (AmmoMap.Contains(AmmoType))
@@ -543,7 +575,7 @@ void AShooterCharacter::GrabClip()
 	if (EquippedWeapon == nullptr) return;
 	if (HandSceneComponent == nullptr) return;
 
-	const int32 ClipBoneIndex{EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName())};
+	const int32 ClipBoneIndex{ EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName()) };
 	ClipTransform = EquippedWeapon->GetItemMesh()->GetBoneTransform(ClipBoneIndex);
 
 	const FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, true);
@@ -556,6 +588,64 @@ void AShooterCharacter::GrabClip()
 void AShooterCharacter::ReleaseClip()
 {
 	EquippedWeapon->SetMovingClip(false);
+}
+
+void AShooterCharacter::Jump()
+{
+	if (bCrouching)
+	{
+		bCrouching = false;
+		GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+		return;
+	}
+
+	Super::Jump();
+}
+
+void AShooterCharacter::InterpCapsuleHalfHeight(float DeltaTime)
+{
+	float TargetCapsuleHalfHeight = bCrouching ? CrouchingCapsuleHalfHeight : StandingCapsuleHalfHeight;
+	const float InterpHalfHeight{
+		FMath::FInterpTo(GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), TargetCapsuleHalfHeight, DeltaTime, 20.f)
+	};
+	// Negative value if we are crouching, positive if we are standing
+	const float DeltaCapsuleHalfHeight{ InterpHalfHeight - GetCapsuleComponent()->GetScaledCapsuleHalfHeight() };
+	const FVector MeshOffset{ 0.f, 0.f, -DeltaCapsuleHalfHeight };
+	GetMesh()->AddLocalOffset(MeshOffset);
+	GetCapsuleComponent()->SetCapsuleHalfHeight(InterpHalfHeight);
+}
+
+void AShooterCharacter::Aim()
+{
+	bAiming = true;
+	GetCharacterMovement()->MaxWalkSpeed = CrouchMovementSpeed;
+}
+
+void AShooterCharacter::StopAim()
+{
+	bAiming = false;
+	if (!bCrouching)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+	}
+}
+
+void AShooterCharacter::PickupAmmo(AAmmo* Ammo)
+{
+	if (AmmoMap.Contains(Ammo->GetAmmoType()))
+	{
+		AmmoMap[Ammo->GetAmmoType()] += Ammo->GetItemCount();
+	}
+
+	if (EquippedWeapon->GetAmmoType() == Ammo->GetAmmoType())
+	{
+		if (EquippedWeapon->GetAmmo() == 0)
+		{
+			ReloadWeapon();
+		}
+	}
+
+	Ammo->Destroy();
 }
 
 void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)
@@ -579,8 +669,8 @@ float AShooterCharacter::GetCrosshairSpreadMulitplier() const
 
 FVector AShooterCharacter::GetCameraInterpLocation()
 {
-	const FVector CameraWorldLocation{FollowCamera->GetComponentLocation()};
-	const FVector CameraForward{FollowCamera->GetForwardVector()};
+	const FVector CameraWorldLocation{ FollowCamera->GetComponentLocation() };
+	const FVector CameraForward{ FollowCamera->GetForwardVector() };
 	// Desired = CameraWorldLocation + Forward * A + Up * B
 	return CameraWorldLocation + CameraForward * CameraInterpDistance + FVector::UpVector * CameraInterpElevation;
 }
@@ -591,10 +681,14 @@ void AShooterCharacter::GetPickupItem(AItem* Item)
 	{
 		UGameplayStatics::PlaySound2D(this, Item->GetEquipSound());
 	}
-	
+
 	if (const auto Weapon = Cast<AWeapon>(Item))
 	{
 		SwapWeapon(Weapon);
+	}
+	if (const auto Ammo = Cast<AAmmo>(Item))
+	{
+		PickupAmmo(Ammo);
 	}
 }
 
