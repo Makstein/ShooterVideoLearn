@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "item.generated.h"
 
+class UCurveVector;
 class AShooterCharacter;
 class USphereComponent;
 class UWidgetComponent;
@@ -32,6 +33,14 @@ enum class EItemState : uint8
 	EIS_PickedUp UMETA(DisplayName = "PickedUp"),
 	EIS_Equipped UMETA(DisplayName = "Equipped"),
 	EIS_Falling UMETA(DisplayName = "Falling"),
+};
+
+UENUM(BlueprintType)
+enum class EItemType : uint8
+{
+	EIT_Ammo UMETA(DisplayName = "Ammo"),
+	EIT_Weapon UMETA(DisplayName = "Weapon"),
+	EIT_Max UMETA(DisplayName = "DefaultMax"),
 };
 
 UCLASS()
@@ -74,9 +83,33 @@ protected:
 	// Handle item interpolation when in the EquipInterping state
 	void ItemInterp(const float DeltaTime);
 
+	// Get Interp Location based on the item type
+	FVector GetInterpLocation();
+
+	void PlayPickupSound();
+
+	virtual void InitializeCustomDepth();
+
+	virtual void OnConstruction(const FTransform& Transform) override;
+
+	void EnableGlowMaterial();
+
+	void UpdatePulse();
+
+	void ResetPulseTimer();
+	void StartPulseTimer();
+	
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	// Called in AShooterCharacter::GetPickupItem
+	void PlayEquipSound();
+
+	virtual void EnableCustomDepth();
+	virtual void DisableCustomDepth();
+
+	void DisableGlowMaterial();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
@@ -154,6 +187,49 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	USoundCue* EquipSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	EItemType ItemType;
+
+	// Index of the interp location currently being used
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	int32 InterpLocIndex;
+
+	// Index of the material needed to be changed at runtime
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	int32 MaterialIndex;
+
+	// Dynamic instance of the material that will be changed at runtime
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UMaterialInstanceDynamic* DynamicMaterialInstance;
+
+	// Material instance used with the dynamic material
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UMaterialInstance* MaterialInstance;
+
+	bool bCanChangeCustomDepth;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UCurveVector* PulseCurve;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	UCurveVector* InterpPulseCurve;
+
+	FTimerHandle PulseTimer;
+
+	// Time for the Pulse Timer
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float PulseCurveTime;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float GlowAmount;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float FresnelExponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	float FresnelReflectFraction;
+
 
 public:
 	FORCEINLINE UWidgetComponent* GetPickupWidget() const { return PickupWidget; }

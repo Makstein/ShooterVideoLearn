@@ -3,6 +3,7 @@
 
 #include "Ammo.h"
 
+#include "ShooterCharacter.h"
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
@@ -21,13 +22,18 @@ AAmmo::AAmmo()
 	GetCollisionBox()->SetupAttachment(GetRootComponent());
 	GetPickupWidget()->SetupAttachment(GetRootComponent());
 	GetAreaSphere()->SetupAttachment(GetRootComponent());
+
+	AmmoCollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AmmoCollisionSphere"));
+	AmmoCollisionSphere->SetupAttachment(GetRootComponent());
+	AmmoCollisionSphere->SetSphereRadius(50.f);
 }
 
 // Called when the game starts or when spawned
 void AAmmo::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	AmmoCollisionSphere->OnComponentBeginOverlap.AddDynamic(this, &AAmmo::AmmoSphereOverlap);
 }
 
 void AAmmo::SetItemProperties(const EItemState State)
@@ -81,8 +87,31 @@ void AAmmo::SetItemProperties(const EItemState State)
 	}
 }
 
-// Called every frame
+void AAmmo::AmmoSphereOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor)
+	{
+		if (AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(OtherActor))
+		{
+			// ShooterCharacter->IncrementOverlappedItemCount(1);
+			StartItemCurve(ShooterCharacter);
+			AmmoCollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
 
+void AAmmo::EnableCustomDepth()
+{
+	AmmoMesh->SetRenderCustomDepth(true);
+}
+
+void AAmmo::DisableCustomDepth()
+{
+	AmmoMesh->SetRenderCustomDepth(false);
+}
+
+// Called every frame
 void AAmmo::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
