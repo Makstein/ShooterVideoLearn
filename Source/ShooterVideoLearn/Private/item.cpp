@@ -34,7 +34,9 @@ AItem::AItem():
 	GlowAmount(150.f),
 	FresnelExponent(3.f),
 	FresnelReflectFraction(4.f),
-	PulseCurveTime(5.f)
+	PulseCurveTime(5.f),
+	SlotIndex(0),
+	bCharacterInventoryFull(false)
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -73,6 +75,7 @@ void AItem::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor*
 	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(OtherActor);
 	if (!ShooterCharacter) return;
 	ShooterCharacter->IncrementOverlappedItemCount(-1);
+	ShooterCharacter->UnHighlightInventorySlot();
 }
 
 void AItem::SetActiveStars()
@@ -160,6 +163,21 @@ void AItem::SetItemProperties(const EItemState State)
 			CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			break;
 		}
+	case EItemState::EIS_PickedUp:
+		PickupWidget->SetVisibility(false);
+	// Set Mesh properties
+		ItemMesh->SetSimulatePhysics(false);
+		ItemMesh->SetVisibility(false);
+		ItemMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+		ItemMesh->SetEnableGravity(false);
+		ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// Set AreaSphere properties
+		AreaSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+		AreaSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// Set CollisionBox properties
+		CollisionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		break;
 	default: break;
 	}
 }
@@ -187,7 +205,7 @@ void AItem::BeginPlay()
 	StartPulseTimer();
 }
 
-void AItem::FinishInterping()
+void AItem::FinishInterpreting()
 {
 	bInterping = false;
 
@@ -195,14 +213,14 @@ void AItem::FinishInterping()
 
 	Character->IncrementInterpLocItemCount(InterpLocIndex, -1);
 	Character->GetPickupItem(this);
-	SetItemState(EItemState::EIS_PickedUp);
+	Character->UnHighlightInventorySlot();
 
 	SetActorScale3D(FVector::One());
 
 	DisableGlowMaterial();
 	bCanChangeCustomDepth = true;
 	DisableCustomDepth();
-} 
+}
 
 void AItem::ItemInterp(const float DeltaTime)
 {
@@ -210,7 +228,7 @@ void AItem::ItemInterp(const float DeltaTime)
 
 	if (!Character || !ItemZCurve) return;
 
-	// Elapsed Time Since Started Interping
+	// Elapsed Time Since Started Interpreting
 	const float ElapsedTime = GetWorldTimerManager().GetTimerElapsed(ItemInterpTimer);
 	// Get curve value corresponding to elapsed time
 	const float CurveValue = ItemZCurve->GetFloatValue(ElapsedTime);
@@ -261,9 +279,9 @@ FVector AItem::GetInterpLocation()
 	return FVector();
 }
 
-void AItem::PlayPickupSound()
+void AItem::PlayPickupSound(bool bForcedPlaySound)
 {
-	if (Character && Character->ShouldPlayPickupSound())
+	if (Character && (Character->ShouldPlayPickupSound() || bForcedPlaySound))
 	{
 		Character->StartPickupSoundTimer();
 		if (PickupSound)
@@ -335,7 +353,8 @@ void AItem::UpdatePulse()
 	{
 		DynamicMaterialInstance->SetScalarParameterValue(TEXT("GlowAmount"), CurveValue.X * GlowAmount);
 		DynamicMaterialInstance->SetScalarParameterValue(TEXT("FresnelExponent"), CurveValue.Y * FresnelExponent);
-		DynamicMaterialInstance->SetScalarParameterValue(TEXT("FresnelReflectFraction"), CurveValue.Z * FresnelReflectFraction);
+		DynamicMaterialInstance->SetScalarParameterValue(
+			TEXT("FresnelReflectFraction"), CurveValue.Z * FresnelReflectFraction);
 	}
 }
 
@@ -347,9 +366,9 @@ void AItem::DisableGlowMaterial()
 	}
 }
 
-void AItem::PlayEquipSound()
+void AItem::PlayEquipSound(bool bForcePlaySound)
 {
-	if (Character && Character->ShouldPlayEquipSound())
+	if (Character && (Character->ShouldPlayEquipSound() || bForcePlaySound))
 	{
 		Character->StartEquipSoundTimer();
 		if (EquipSound)
@@ -389,7 +408,7 @@ void AItem::SetItemState(const EItemState State)
 	SetItemProperties(State);
 }
 
-void AItem::StartItemCurve(AShooterCharacter* Char)
+void AItem::StartItemCurve(AShooterCharacter* Char, bool bForcePlaySound)
 {
 	// Store a handle to the Character
 	Character = Char;
@@ -397,15 +416,15 @@ void AItem::StartItemCurve(AShooterCharacter* Char)
 	InterpLocIndex = Character->GetInterpLocationIndex();
 	Character->IncrementInterpLocItemCount(InterpLocIndex, 1);
 
-	PlayPickupSound();
+	PlayPickupSound(bForcePlaySound);
 
 	// Get initial location
 	ItemInterpStartLocation = GetActorLocation();
 	bInterping = true;
 	SetItemState(EItemState::EIS_EquipInterping);
-	
+
 	GetWorldTimerManager().ClearTimer(PulseTimer);
-	GetWorldTimerManager().SetTimer(ItemInterpTimer, this, &AItem::FinishInterping, ZCurveTime);
+	GetWorldTimerManager().SetTimer(ItemInterpTimer, this, &AItem::FinishInterpreting, ZCurveTime);
 
 	const double CameraRotationYaw{ Character->GetFollowCamera()->GetComponentRotation().Yaw };
 	const double ItemRotationYaw{ GetActorRotation().Yaw };

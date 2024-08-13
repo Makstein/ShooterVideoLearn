@@ -18,7 +18,8 @@ UShooterAnimInstance::UShooterAnimInstance() :
 	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip),
 	CharacterRotation(FRotator(0.f)),
 	CharacterRotationLastFrame(FRotator(0.f)), YawDelta(0), bCrouching(false), RecoilWeight(1.0f),
-	bTurningInPlace(false)
+	bTurningInPlace(false),
+	bEquipping(false)
 {
 }
 
@@ -35,6 +36,7 @@ void UShooterAnimInstance::UpdateAnimationProperties(const float DeltaTime)
 
 	bReloading = ShooterCharacter->GetCombatState() == ECombatState::ECS_Reloading;
 	bCrouching = ShooterCharacter->GetCrouching();
+	bEquipping = ShooterCharacter->GetCombatState() == ECombatState::ECS_Equipping;
 
 	FVector Velocity = ShooterCharacter->GetVelocity();
 	Velocity.Z = 0;
@@ -131,17 +133,17 @@ void UShooterAnimInstance::TurnInPlace()
 
 	if (bTurningInPlace)
 	{
-		RecoilWeight = bReloading ? 1.f : 0.f;
+		RecoilWeight = (bReloading || bEquipping) ? 1.f : 0.f;
 	}
 	else
 	{
 		if (bCrouching)
 		{
-			RecoilWeight = bReloading ? 1.f : 0.1f;
+			RecoilWeight = (bReloading || bEquipping) ? 1.f : 0.1f;
 		}
 		else
 		{
-			RecoilWeight = (bAiming || bReloading) ? 1.f : 0.5f;
+			RecoilWeight = (bAiming || bReloading || bEquipping) ? 1.f : 0.5f;
 		}
 	}
 }
