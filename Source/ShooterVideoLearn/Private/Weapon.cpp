@@ -11,7 +11,13 @@ AWeapon::AWeapon() :
 	WeaponType(EWeaponType::EWT_SubMachineGun),
 	AmmoType(EAmmoType::EAT_9MM),
 	ReloadMontageSection(FName(TEXT("Reload SMG"))), bMovingClip(false),
-	ClipBoneName(TEXT("smg_clip"))
+	ClipBoneName(TEXT("smg_clip")),
+	SlideDisplacement(0.f),
+	SlideDisplacementTime(.2f),
+	bMovingSlide(false),
+	MaxSlideDisplacement(4.f),
+	MaxRecoilRotation(20.f),
+	bAutomatic(true)
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
@@ -26,6 +32,8 @@ void AWeapon::Tick(float DeltaSeconds)
 		const FRotator MeshRotation{0.f, GetItemMesh()->GetComponentRotation().Yaw, 0.f};
 		GetItemMesh()->SetWorldRotation(MeshRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
+
+	UpdateSlideDisplacement();
 }
 
 void AWeapon::ThrowWeapon()
@@ -50,7 +58,6 @@ void AWeapon::ThrowWeapon()
 }
 
 void AWeapon::DecrementAmmo()
-
 {
 	Ammo--;
 	if (Ammo <= 0)
@@ -59,13 +66,19 @@ void AWeapon::DecrementAmmo()
 	}
 }
 
+void AWeapon::StartSlideTimer()
+{
+	bMovingSlide = true;
+	GetWorldTimerManager().SetTimer(SlideTimer, this, &AWeapon::FinishMovingSlide, SlideDisplacementTime);
+}
+
 void AWeapon::ReloadAmmo(int32 Amount)
 {
 	checkf(Ammo + Amount <= MagazineCapacity, TEXT("Attempted to reload with more than magazine capacity!"));
 	Ammo += Amount;
 }
 
-bool AWeapon::ClipIsFull()
+bool AWeapon::ClipIsFull() const
 {
 	return Ammo >= MagazineCapacity;
 }
@@ -76,4 +89,96 @@ void AWeapon::StopFalling()
 	SetItemState(EItemState::EIS_Pickup);
 
 	StartPulseTimer();
+}
+
+void AWeapon::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	const FString WeaponTablePath{
+		TEXT("/Script/Engine.DataTable'/Game/_Game/DataTables/WeaponDataTable.WeaponDataTable'")
+	};
+
+	if (const UDataTable* WeaponTableObject = Cast<UDataTable>(
+		StaticLoadObject(UDataTable::StaticClass(), nullptr, *WeaponTablePath)))
+	{
+		const FWeaponDataTable* WeaponTableRow = nullptr;
+		switch (WeaponType)
+		{
+		case EWeaponType::EWT_SubMachineGun:
+			WeaponTableRow = WeaponTableObject->FindRow<FWeaponDataTable>(FName("SubmachineGun"), TEXT(""));
+			break;
+		case EWeaponType::EWT_AssaultRifle:
+			WeaponTableRow = WeaponTableObject->FindRow<FWeaponDataTable>(FName("AssaultRifle"), TEXT(""));
+			break;
+		case EWeaponType::EWT_Pistol:
+			WeaponTableRow = WeaponTableObject->FindRow<FWeaponDataTable>(FName("Pistol"), TEXT(""));
+			break;
+		default:
+			break;
+		}
+
+		if (WeaponTableRow)
+		{
+			AmmoType = WeaponTableRow->AmmoType;
+			Ammo = WeaponTableRow->WeaponAmmo;
+			MagazineCapacity = WeaponTableRow->MagazineCapacity;
+			SetPickupSound(WeaponTableRow->PickupSound);
+			SetEquipSound(WeaponTableRow->EquipSound);
+			GetItemMesh()->SetSkeletalMesh(WeaponTableRow->ItemMesh);
+			SetItemName(WeaponTableRow->ItemName);
+			SetIconItem(WeaponTableRow->InventoryIcon);
+			SetIconAmmo(WeaponTableRow->AmmoIcon);
+
+			SetMaterialInstance(WeaponTableRow->MaterialInstance);
+			PreviousMaterialIndex = GetMaterialIndex();
+			GetItemMesh()->SetMaterial(PreviousMaterialIndex, nullptr);
+			SetMaterialIndex(WeaponTableRow->MaterialIndex);
+			SetClipBoneName(WeaponTableRow->ClipBoneName);
+			SetReloadMontageSection(WeaponTableRow->ReloadMontageSection);
+			GetItemMesh()->SetAnimInstanceClass(WeaponTableRow->AnimBP);
+			AutoFireRate = WeaponTableRow->AutoFireRate;
+			MuzzleFlash = WeaponTableRow->MuzzleFlash;
+			FireSound = WeaponTableRow->FireSound;
+			BoneToHide = WeaponTableRow->BoneToHide;
+			bAutomatic = WeaponTableRow->bAutomatic;
+
+			CrosshairMiddle = WeaponTableRow->CrosshairMiddle;
+			CrosshairLeft = WeaponTableRow->CrosshairLeft;
+			CrosshairRight = WeaponTableRow->CrosshairRight;
+			CrosshairBottom = WeaponTableRow->CrosshairBottom;
+			CrosshairTop = WeaponTableRow->CrosshairTop;
+		}
+
+		if (GetMaterialInstance())
+		{
+			SetDynamicMaterialInstance(UMaterialInstanceDynamic::Create(GetMaterialInstance(), this));
+			GetDynamicMaterialInstance()->SetVectorParameterValue(TEXT("FresnelColor"), GetGlowColor());
+			GetItemMesh()->SetMaterial(GetMaterialIndex(), GetDynamicMaterialInstance());
+			EnableGlowMaterial();
+		}
+	}
+}
+
+void AWeapon::BeginPlay()
+{
+	Super::BeginPlay();
+	if (BoneToHide != FName(""))
+	{
+		GetItemMesh()->HideBoneByName(BoneToHide, EPhysBodyOp::PBO_None);
+	}
+}
+
+void AWeapon::FinishMovingSlide()
+{
+	bMovingSlide = false;
+}
+
+void AWeapon::UpdateSlideDisplacement()
+{
+	if (!SlideDisplacementCurve) return;
+
+	const float ElapsedTime{ GetWorldTimerManager().GetTimerElapsed(SlideTimer) };
+	const float CurveValue{ SlideDisplacementCurve->GetFloatValue(ElapsedTime) };
+	SlideDisplacement = CurveValue * MaxSlideDisplacement;
+	RecoilRotation = CurveValue * MaxRecoilRotation;
 }

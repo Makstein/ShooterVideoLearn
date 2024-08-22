@@ -314,7 +314,7 @@ void AItem::OnConstruction(const FTransform& Transform)
 	const FString RarityTablePath{ TEXT("/Script/Engine.DataTable'/Game/_Game/DataTables/ItemRarityDataTable.ItemRarityDataTable'") };
 	if (const UDataTable* RarityTableObject{ (Cast<UDataTable>(StaticLoadObject(UDataTable::StaticClass(), nullptr, *RarityTablePath))) })
 	{
-		FItemRarityTable* RarityRow{ nullptr };
+		const FItemRarityTable* RarityRow{ nullptr };
 		switch (ItemRarity)
 		{
 		case EItemRarity::Eir_Damaged:

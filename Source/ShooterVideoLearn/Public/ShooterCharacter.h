@@ -89,13 +89,6 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = true))
 	class UCameraComponent* FollowCamera;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
-	class USoundCue* FireSound;
-
-	// Flash spawned at BarrelSocket
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
-	UParticleSystem* MuzzleFlash;
-
 	// Montage for fire the weapon
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
 	UAnimMontage* HipFireMontage;
@@ -146,8 +139,6 @@ private:
 	float ShootTimeDuration;
 
 	bool bFiringBullet;
-
-	float AutomaticFireRate;
 
 	// 两次射击之间的计时器
 	FTimerHandle AutoFireTimer;
@@ -466,4 +457,6 @@ public:
 
 	void HighlightInventorySlot();
 	void UnHighlightInventorySlot();
+
+	FORCEINLINE AWeapon* GetEquippedWeapon() const { return EquippedWeapon; }
 };

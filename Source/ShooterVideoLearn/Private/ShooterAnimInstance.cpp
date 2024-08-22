@@ -1,5 +1,6 @@
 #include "ShooterAnimInstance.h"
 #include "ShooterCharacter.h"
+#include "Weapon.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -19,7 +20,9 @@ UShooterAnimInstance::UShooterAnimInstance() :
 	CharacterRotation(FRotator(0.f)),
 	CharacterRotationLastFrame(FRotator(0.f)), YawDelta(0), bCrouching(false), RecoilWeight(1.0f),
 	bTurningInPlace(false),
-	bEquipping(false)
+	bEquipping(false),
+	bShouldUseFABRIK(false),
+	EquippedWeaponType(EWeaponType::EWT_Max)
 {
 }
 
@@ -37,6 +40,7 @@ void UShooterAnimInstance::UpdateAnimationProperties(const float DeltaTime)
 	bReloading = ShooterCharacter->GetCombatState() == ECombatState::ECS_Reloading;
 	bCrouching = ShooterCharacter->GetCrouching();
 	bEquipping = ShooterCharacter->GetCombatState() == ECombatState::ECS_Equipping;
+	bShouldUseFABRIK = !(bReloading || bEquipping);
 
 	FVector Velocity = ShooterCharacter->GetVelocity();
 	Velocity.Z = 0;
@@ -74,6 +78,11 @@ void UShooterAnimInstance::UpdateAnimationProperties(const float DeltaTime)
 		OffsetState = EOffsetState::EOS_Hip;
 	}
 
+	if (const auto EquippedWeapon = ShooterCharacter->GetEquippedWeapon())
+	{
+		EquippedWeaponType = EquippedWeapon->GetWeaponType();
+	}
+
 	TurnInPlace();
 	Lean(DeltaTime);
 }
@@ -105,23 +114,23 @@ void UShooterAnimInstance::TurnInPlace()
 	{
 		TIPCharacterYawLastFrame = TIPCharacterYaw;
 		TIPCharacterYaw = ShooterCharacter->GetActorRotation().Yaw;
-		const float TIPYawDelta{ TIPCharacterYaw - TIPCharacterYawLastFrame };
+		const float TIPYawDelta{TIPCharacterYaw - TIPCharacterYawLastFrame};
 		RootYawOffset = UKismetMathLibrary::NormalizeAxis(RootYawOffset - TIPYawDelta);
 
 		// 1.0 if turning, 0.0 if not
-		if (const float Turning{ GetCurveValue(TEXT("Turning")) }; Turning > 0)
+		if (const float Turning{GetCurveValue(TEXT("Turning"))}; Turning > 0)
 		{
 			bTurningInPlace = true;
 			RotationCurveValueLastFrame = RotationCurve;
 			RotationCurve = GetCurveValue(TEXT("Rotation"));
-			const float DeltaRotation{ RotationCurve - RotationCurveValueLastFrame };
+			const float DeltaRotation{RotationCurve - RotationCurveValueLastFrame};
 
 			// RootYawOffset > 0 means turning to the left
 			// RootYawOffset < 0 means turning to the right
 			RootYawOffset > 0 ? RootYawOffset -= DeltaRotation : RootYawOffset += DeltaRotation;
-			if (const float ABSRootYawOffset{ FMath::Abs(RootYawOffset) }; ABSRootYawOffset > 90.f)
+			if (const float ABSRootYawOffset{FMath::Abs(RootYawOffset)}; ABSRootYawOffset > 90.f)
 			{
-				const float Excess{ ABSRootYawOffset - 90.f };
+				const float Excess{ABSRootYawOffset - 90.f};
 				RootYawOffset > 0 ? RootYawOffset -= Excess : RootYawOffset += Excess;
 			}
 		}
@@ -157,10 +166,10 @@ void UShooterAnimInstance::Lean(const float DeltaTime)
 	CharacterRotationLastFrame = CharacterRotation;
 	CharacterRotation = ShooterCharacter->GetActorRotation();
 
-	const FRotator Delta{ UKismetMathLibrary::NormalizedDeltaRotator(CharacterRotation, CharacterRotationLastFrame) };
+	const FRotator Delta{UKismetMathLibrary::NormalizedDeltaRotator(CharacterRotation, CharacterRotationLastFrame)};
 
-	const double Target{ Delta.Yaw / DeltaTime };
-	const double Interp{ FMath::FInterpTo(YawDelta, Target, DeltaTime, 6.f) };
+	const double Target{Delta.Yaw / DeltaTime};
+	const double Interp{FMath::FInterpTo(YawDelta, Target, DeltaTime, 6.f)};
 	YawDelta = FMath::Clamp(Interp, -90.f, 90.f);
 
 	// if (GEngine)
