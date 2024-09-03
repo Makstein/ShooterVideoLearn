@@ -255,7 +255,7 @@ void AShooterCharacter::CharacterCrouch(const FInputActionValue& Value)
 	}
 }
 
-bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation)
+bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation) const
 {
 	FHitResult OutHitResult;
 	TraceUnderCrosshairs(OutHitResult);
@@ -264,7 +264,7 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 
 	FHitResult WeaponTraceHit;
 	const FVector WeaponTraceStart = MuzzleSocketLocation;
-	const FVector StartToEnd{OutBeamLocation - MuzzleSocketLocation};
+	const FVector StartToEnd{ OutBeamLocation - MuzzleSocketLocation };
 	// 防止未检测到
 	const FVector WeaponTraceEnd = MuzzleSocketLocation + StartToEnd * 1.25f;
 	GetWorld()->LineTraceSingleByChannel(WeaponTraceHit, WeaponTraceStart, WeaponTraceEnd, ECC_Visibility);
@@ -292,9 +292,9 @@ void AShooterCharacter::SetLookRates()
 
 void AShooterCharacter::CalculateCrosshairSpread(float DeltaTime)
 {
-	const FVector2D WalkSpeedRange{0.f, 600.f};
-	const FVector2D VelocityRange{0.f, 1.f};
-	FVector Velocity{GetVelocity()};
+	const FVector2D WalkSpeedRange{ 0.f, 600.f };
+	const FVector2D VelocityRange{ 0.f, 1.f };
+	FVector Velocity{ GetVelocity() };
 	Velocity.Z = 0.f;
 
 	CrosshairVelocityFactor = FMath::GetMappedRangeValueClamped(WalkSpeedRange, VelocityRange, Velocity.Size());
@@ -332,7 +332,8 @@ void AShooterCharacter::StartFireTimer()
 {
 	if (EquippedWeapon == nullptr) return;
 	CombatState = ECombatState::ECS_FireTimerInProgress;
-	GetWorldTimerManager().SetTimer(AutoFireTimer, this, &AShooterCharacter::AutoFireReset, EquippedWeapon->GetAutoFireRate());
+	GetWorldTimerManager().SetTimer(AutoFireTimer, this, &AShooterCharacter::AutoFireReset,
+	                                EquippedWeapon->GetAutoFireRate());
 }
 
 void AShooterCharacter::FireWeapon()
@@ -379,7 +380,7 @@ void AShooterCharacter::AutoFireReset()
 	}
 }
 
-bool AShooterCharacter::TraceUnderCrosshairs(FHitResult& OutHitResult)
+bool AShooterCharacter::TraceUnderCrosshairs(FHitResult& OutHitResult) const
 {
 	FVector2d ViewPortSize;
 	if (GEngine && GEngine->GameViewport)
@@ -396,8 +397,8 @@ bool AShooterCharacter::TraceUnderCrosshairs(FHitResult& OutHitResult)
 	                                             CrosshairWorldPosition,
 	                                             CrosshairWorldDirection))
 	{
-		const FVector Start{CrosshairWorldPosition};
-		const FVector End{CrosshairWorldPosition + CrosshairWorldDirection * 50000.f};
+		const FVector Start{ CrosshairWorldPosition };
+		const FVector End{ CrosshairWorldPosition + CrosshairWorldDirection * 50000.f };
 		GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECC_Visibility);
 
 		if (OutHitResult.bBlockingHit)
@@ -428,8 +429,7 @@ void AShooterCharacter::TraceForItems()
 	if (FHitResult ItemTraceResult; TraceUnderCrosshairs(ItemTraceResult))
 	{
 		TraceHitItem = Cast<AItem>(ItemTraceResult.GetActor());
-		const auto TraceHitWeapon = Cast<AWeapon>(TraceHitItem);
-		if (TraceHitWeapon)
+		if ([[maybe_unused]] const auto TraceHitWeapon = Cast<AWeapon>(TraceHitItem))
 		{
 			if (HighlightedSlot == -1)
 			{
@@ -475,7 +475,7 @@ void AShooterCharacter::TraceForItems()
 	}
 }
 
-AWeapon* AShooterCharacter::SpawnDefaultWeapon()
+AWeapon* AShooterCharacter::SpawnDefaultWeapon() const
 {
 	if (!DefaultWeaponClass) return nullptr;
 
@@ -504,7 +504,7 @@ void AShooterCharacter::EquipWeapon(AWeapon* WeaponToEquip, bool bSwapping)
 	EquippedWeapon->SetItemState(EItemState::EIS_Equipped);
 }
 
-void AShooterCharacter::DropWeapon()
+void AShooterCharacter::DropWeapon() const
 {
 	if (!EquippedWeapon) return;
 
@@ -534,14 +534,14 @@ void AShooterCharacter::InitializeAmmoMap()
 	AmmoMap.Add(EAmmoType::EAT_AR, StartingARAmmo);
 }
 
-bool AShooterCharacter::WeaponHasAmmo()
+bool AShooterCharacter::WeaponHasAmmo() const
 {
 	if (EquippedWeapon == nullptr) return false;
 
 	return EquippedWeapon->GetAmmo() > 0;
 }
 
-void AShooterCharacter::PlayFireSound()
+void AShooterCharacter::PlayFireSound() const
 {
 	// Play FireSound
 	if (EquippedWeapon->GetFireSound())
@@ -582,7 +582,7 @@ void AShooterCharacter::SendBullet()
 	}
 }
 
-void AShooterCharacter::PlayGunFireMontage()
+void AShooterCharacter::PlayGunFireMontage() const
 {
 	// Play hip fire montage
 	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && HipFireMontage)
@@ -628,7 +628,7 @@ void AShooterCharacter::FinishReloading()
 
 	if (EquippedWeapon == nullptr) return;
 
-	const auto AmmoType{EquippedWeapon->GetAmmoType()};
+	const auto AmmoType{ EquippedWeapon->GetAmmoType() };
 
 	// Update the ammo map
 	if (AmmoMap.Contains(AmmoType))
@@ -681,7 +681,7 @@ void AShooterCharacter::GrabClip()
 	if (EquippedWeapon == nullptr) return;
 	if (HandSceneComponent == nullptr) return;
 
-	const int32 ClipBoneIndex{EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName())};
+	const int32 ClipBoneIndex{ EquippedWeapon->GetItemMesh()->GetBoneIndex(EquippedWeapon->GetClipBoneName()) };
 	ClipTransform = EquippedWeapon->GetItemMesh()->GetBoneTransform(ClipBoneIndex);
 
 	const FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, true);
@@ -708,15 +708,15 @@ void AShooterCharacter::Jump()
 	Super::Jump();
 }
 
-void AShooterCharacter::InterpCapsuleHalfHeight(float DeltaTime)
+void AShooterCharacter::InterpCapsuleHalfHeight(float DeltaTime) const
 {
-	float TargetCapsuleHalfHeight = bCrouching ? CrouchingCapsuleHalfHeight : StandingCapsuleHalfHeight;
+	const float TargetCapsuleHalfHeight = bCrouching ? CrouchingCapsuleHalfHeight : StandingCapsuleHalfHeight;
 	const float InterpHalfHeight{
 		FMath::FInterpTo(GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), TargetCapsuleHalfHeight, DeltaTime, 20.f)
 	};
 	// Negative value if we are crouching, positive if we are standing
-	const float DeltaCapsuleHalfHeight{InterpHalfHeight - GetCapsuleComponent()->GetScaledCapsuleHalfHeight()};
-	const FVector MeshOffset{0.f, 0.f, -DeltaCapsuleHalfHeight};
+	const float DeltaCapsuleHalfHeight{ InterpHalfHeight - GetCapsuleComponent()->GetScaledCapsuleHalfHeight() };
+	const FVector MeshOffset{ 0.f, 0.f, -DeltaCapsuleHalfHeight };
 	GetMesh()->AddLocalOffset(MeshOffset);
 	GetCapsuleComponent()->SetCapsuleHalfHeight(InterpHalfHeight);
 }
@@ -756,25 +756,25 @@ void AShooterCharacter::PickupAmmo(AAmmo* Ammo)
 
 void AShooterCharacter::InitializeInterpLocations()
 {
-	const FInterpLocation WeaponLocation{WeaponInterpComp, 0};
+	const FInterpLocation WeaponLocation{ WeaponInterpComp, 0 };
 	FInterpLocations.Add(WeaponLocation);
 
-	const FInterpLocation InterpLoc1{InterpComp1, 0};
+	const FInterpLocation InterpLoc1{ InterpComp1, 0 };
 	FInterpLocations.Add(InterpLoc1);
 
-	const FInterpLocation InterpLoc2{InterpComp2, 0};
+	const FInterpLocation InterpLoc2{ InterpComp2, 0 };
 	FInterpLocations.Add(InterpLoc2);
 
-	const FInterpLocation InterpLoc3{InterpComp3, 0};
+	const FInterpLocation InterpLoc3{ InterpComp3, 0 };
 	FInterpLocations.Add(InterpLoc3);
 
-	const FInterpLocation InterpLoc4{InterpComp4, 0};
+	const FInterpLocation InterpLoc4{ InterpComp4, 0 };
 	FInterpLocations.Add(InterpLoc4);
 
-	const FInterpLocation InterpLoc5{InterpComp5, 0};
+	const FInterpLocation InterpLoc5{ InterpComp5, 0 };
 	FInterpLocations.Add(InterpLoc5);
 
-	const FInterpLocation InterpLoc6{InterpComp6, 0};
+	const FInterpLocation InterpLoc6{ InterpComp6, 0 };
 	FInterpLocations.Add(InterpLoc6);
 }
 
@@ -818,7 +818,7 @@ void AShooterCharacter::ExchangeInventoryItems(int32 CurrentItemSlot, int32 NewI
 	{
 		StopAim();
 	}
-	
+
 	const auto OldEquippedWeapon = EquippedWeapon;
 	const auto NewWeapon = Cast<AWeapon>(Inventory[NewItemSlot]);
 	EquipWeapon(NewWeapon);
@@ -827,8 +827,7 @@ void AShooterCharacter::ExchangeInventoryItems(int32 CurrentItemSlot, int32 NewI
 	NewWeapon->SetItemState(EItemState::EIS_Equipped);
 
 	CombatState = ECombatState::ECS_Equipping;
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance && EquipMontage)
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && EquipMontage)
 	{
 		AnimInstance->Montage_Play(EquipMontage, 1.f);
 		AnimInstance->Montage_JumpToSection(FName("Equip"));
@@ -854,9 +853,21 @@ int32 AShooterCharacter::GetEmptyInventorySlot()
 	return -1; // Inventory is full
 }
 
+EPhysicalSurface AShooterCharacter::GetSurfaceType()
+{
+	FHitResult HitResult;
+	const FVector Start{ GetActorLocation() };
+	const FVector End{ Start + FVector(0.f, 0.f, -400.f) };
+	FCollisionQueryParams QueryParams;
+	QueryParams.bReturnPhysicalMaterial = true;
+
+	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams);
+	return UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
+}
+
 void AShooterCharacter::HighlightInventorySlot()
 {
-	const int32 EmptySlot{GetEmptyInventorySlot()};
+	const int32 EmptySlot{ GetEmptyInventorySlot() };
 	HighlightIconDelegate.Broadcast(EmptySlot, true);
 	HighlightedSlot = EmptySlot;
 }
@@ -922,7 +933,7 @@ void AShooterCharacter::IncrementOverlappedItemCount(const int8 Amount)
 	}
 }
 
-float AShooterCharacter::GetCrosshairSpreadMulitplier() const
+float AShooterCharacter::GetCrosshairSpreadMultiplier() const
 {
 	return CrosshairSpreadMultiplier;
 }

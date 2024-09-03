@@ -342,7 +342,7 @@ protected:
 
 	void CharacterCrouch(const FInputActionValue& Value);
 
-	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation);
+	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation) const;
 
 	void CameraInterpZoom(float DeltaTime);
 
@@ -362,16 +362,16 @@ protected:
 	UFUNCTION()
 	void AutoFireReset();
 
-	bool TraceUnderCrosshairs(FHitResult& OutHitResult);
+	bool TraceUnderCrosshairs(FHitResult& OutHitResult) const;
 
 	void TraceForItems();
 
-	AWeapon* SpawnDefaultWeapon();
+	AWeapon* SpawnDefaultWeapon() const;
 
 	void EquipWeapon(AWeapon* WeaponToEquip, bool bSwapping = false);
 
 	// Detach Weapon and let it fall to the ground
-	void DropWeapon();
+	void DropWeapon() const;
 
 	// Drops the currently equipped weapon and equips the TraceHitItem weapon
 	void SwapWeapon(AWeapon* WeaponToSwap);
@@ -380,10 +380,10 @@ protected:
 	void InitializeAmmoMap();
 
 	// Fire weapon functions
-	bool WeaponHasAmmo();
-	void PlayFireSound();
+	bool WeaponHasAmmo() const;
+	void PlayFireSound() const;
 	void SendBullet();
-	void PlayGunFireMontage();
+	void PlayGunFireMontage() const;
 
 	void ReloadWeapon();
 
@@ -405,7 +405,7 @@ protected:
 	virtual void Jump() override;
 
 	// When crouching/standing the capsule half height should be changed
-	void InterpCapsuleHalfHeight(float DeltaTime);
+	void InterpCapsuleHalfHeight(float DeltaTime) const;
 
 	void Aim();
 	void StopAim();
@@ -425,6 +425,9 @@ protected:
 
 	int32 GetEmptyInventorySlot();
 
+	UFUNCTION(BlueprintCallable)
+	EPhysicalSurface GetSurfaceType();
+
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -435,7 +438,7 @@ public:
 	void IncrementOverlappedItemCount(int8 Amount);
 
 	UFUNCTION()
-	float GetCrosshairSpreadMulitplier() const;
+	float GetCrosshairSpreadMultiplier() const;
 
 	// No longer needed, because item have GetInterpLocation()
 	//FVector GetCameraInterpLocation();
