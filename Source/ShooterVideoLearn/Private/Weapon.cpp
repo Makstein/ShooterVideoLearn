@@ -12,12 +12,12 @@ AWeapon::AWeapon() :
 	AmmoType(EAmmoType::EAT_9MM),
 	ReloadMontageSection(FName(TEXT("Reload SMG"))), bMovingClip(false),
 	ClipBoneName(TEXT("smg_clip")),
+	bAutomatic(true),
 	SlideDisplacement(0.f),
 	SlideDisplacementTime(.2f),
 	bMovingSlide(false),
 	MaxSlideDisplacement(4.f),
-	MaxRecoilRotation(20.f),
-	bAutomatic(true)
+	MaxRecoilRotation(20.f)
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
