@@ -342,7 +342,7 @@ protected:
 
 	void CharacterCrouch(const FInputActionValue& Value);
 
-	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FVector& OutBeamLocation) const;
+	bool GetBeamEndLocation(const FVector& MuzzleSocketLocation, FHitResult& OutHitResult) const;
 
 	void CameraInterpZoom(float DeltaTime);
 

@@ -147,6 +147,8 @@ void AWeapon::OnConstruction(const FTransform& Transform)
 			CrosshairRight = WeaponTableRow->CrosshairRight;
 			CrosshairBottom = WeaponTableRow->CrosshairBottom;
 			CrosshairTop = WeaponTableRow->CrosshairTop;
+			Damage = WeaponTableRow->Damage;
+			HeadShotDamage = WeaponTableRow->HeadShotDamage;
 		}
 
 		if (GetMaterialInstance())

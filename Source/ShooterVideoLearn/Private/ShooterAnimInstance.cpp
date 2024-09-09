@@ -18,11 +18,11 @@ UShooterAnimInstance::UShooterAnimInstance() :
 	RotationCurve(0),
 	RotationCurveValueLastFrame(0), Pitch(0), bReloading(false), OffsetState(EOffsetState::EOS_Hip),
 	CharacterRotation(FRotator(0.f)),
-	CharacterRotationLastFrame(FRotator(0.f)), YawDelta(0), bCrouching(false), RecoilWeight(1.0f),
+	CharacterRotationLastFrame(FRotator(0.f)), YawDelta(0), bCrouching(false), bEquipping(false),
+	RecoilWeight(1.0f),
 	bTurningInPlace(false),
-	bEquipping(false),
-	bShouldUseFABRIK(false),
-	EquippedWeaponType(EWeaponType::EWT_Max)
+	EquippedWeaponType(EWeaponType::EWT_Max),
+	bShouldUseFABRIK(false)
 {
 }
 

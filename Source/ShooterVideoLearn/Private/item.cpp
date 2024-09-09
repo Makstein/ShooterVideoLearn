@@ -16,10 +16,9 @@
 AItem::AItem():
 	ItemName("Default"),
 	ItemCount(0),
-	ItemRarity(EItemRarity::Eir_Common),
 	ItemState(EItemState::EIS_Pickup),
-	// Item interp variables
 	ItemInterpStartLocation(FVector::Zero()),
+	// Item interp variables
 	CameraTargetLocation(FVector::Zero()),
 	bInterping(false),
 	ZCurveTime(0.7f),
@@ -30,13 +29,14 @@ AItem::AItem():
 	InterpLocIndex(0),
 	MaterialIndex(0),
 	bCanChangeCustomDepth(true),
+	PulseCurveTime(5.f),
 	// Dynamic Material parameters
 	GlowAmount(150.f),
 	FresnelExponent(3.f),
 	FresnelReflectFraction(4.f),
-	PulseCurveTime(5.f),
 	SlotIndex(0),
-	bCharacterInventoryFull(false)
+	bCharacterInventoryFull(false),
+	ItemRarity(EItemRarity::Eir_Common)
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
