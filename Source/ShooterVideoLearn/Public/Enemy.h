@@ -30,6 +30,18 @@ protected:
 
 	void Die();
 
+	void PlayHitMontage(FName Section, float PlayRate = 1.0f);
+
+	void ResetHitReactTimer();
+
+	UFUNCTION(BlueprintCallable)
+	void StoreHitNumber(UUserWidget* HitNumber, FVector HitNumberLocation);
+
+	UFUNCTION()
+	void DestroyHitNumber(UUserWidget* HitNumber);
+
+	void UpdateHitNumbers();
+
 private:
 	// Particle System to spawn on hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
@@ -53,6 +65,27 @@ private:
 
 	FTimerHandle HealthBarTimer;
 
+	// Montage contains hit and death animations
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UAnimMontage* HitMontage;
+
+	FTimerHandle HitReactTimer;
+
+	bool bCanHitReact;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float HitReactTimeMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float HitReactTimeMax;
+
+	// Map to store HitNumber widgets and their locations
+	UPROPERTY(VisibleAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
+	TMap<UUserWidget*, FVector> HitNumbers;
+
+	UPROPERTY(EditAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float HitNumberDestroyTime;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -62,7 +95,11 @@ public:
 
 	virtual void BulletHit_Implementation(FHitResult HitResult) override;
 
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override;
 
 	FORCEINLINE FString GetHeadBone() const { return HeadBone; }
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void ShowHitNumber(int32 Damage, FVector HitLocation, bool bHeadShot = false);
 };
