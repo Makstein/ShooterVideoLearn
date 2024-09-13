@@ -7,6 +7,9 @@
 #include "GameFramework/Character.h"
 #include "Enemy.generated.h"
 
+class USphereComponent;
+class AEnemyAIController;
+class UBehaviorTree;
 class USoundCue;
 
 UCLASS()
@@ -32,6 +35,9 @@ protected:
 
 	void PlayHitMontage(FName Section, float PlayRate = 1.0f);
 
+	UFUNCTION(BlueprintCallable)
+	void PlayAttackMontage(FName Section, float PlayRate = 1.0f);
+
 	void ResetHitReactTimer();
 
 	UFUNCTION(BlueprintCallable)
@@ -41,6 +47,25 @@ protected:
 	void DestroyHitNumber(UUserWidget* HitNumber);
 
 	void UpdateHitNumbers();
+
+	UFUNCTION()
+	void AgroSphereOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	                       int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION(BlueprintCallable)
+	void SetStunned(bool Stunned);
+
+	UFUNCTION()
+	void CombatRangeOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                        const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void CombatRangeEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                           UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UFUNCTION(BlueprintPure)
+	FName GetAttackSectionName();
 
 private:
 	// Particle System to spawn on hit
@@ -69,6 +94,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
 	UAnimMontage* HitMontage;
 
+	// Montage contains attack animations
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UAnimMontage* AttackMontage;
+
 	FTimerHandle HitReactTimer;
 
 	bool bCanHitReact;
@@ -86,6 +115,42 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
 	float HitNumberDestroyTime;
 
+	UPROPERTY(EditAnywhere, Category = "Behavior Tree", meta = (AllowPrivateAccess = true))
+	UBehaviorTree* BehaviorTree;
+
+	// Point for the enemy to move to
+	UPROPERTY(EditAnywhere, Category = "Behavior Tree", meta = (AllowPrivateAccess = true, MakeEditWidget = true))
+	FVector PatrolPoint;
+
+	UPROPERTY(EditAnywhere, Category = "Behavior Tree", meta = (AllowPrivateAccess = true, MakeEditWidget = true))
+	FVector PatrolPoint2;
+
+	UPROPERTY(EditAnywhere, Category = "Behavior Tree", meta = (AllowPrivateAccess = true))
+	AEnemyAIController* EnemyAIController;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	USphereComponent* AgroSphere;
+
+	// True when play the get hit animation
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	bool bStunned;
+
+	// Chance of being stunned
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float StunChance;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	bool bInAttackRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	USphereComponent* CombatRangeSphere;
+
+	// Attack montage sections names
+	FName AttackLFast;
+	FName AttackRFast;
+	FName AttackL;
+	FName AttackR;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -99,6 +164,7 @@ public:
 	                         class AController* EventInstigator, AActor* DamageCauser) override;
 
 	FORCEINLINE FString GetHeadBone() const { return HeadBone; }
+	FORCEINLINE UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void ShowHitNumber(int32 Damage, FVector HitLocation, bool bHeadShot = false);

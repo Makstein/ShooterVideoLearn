@@ -6,6 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "GruxAnimInstance.generated.h"
 
+class AEnemy;
 /**
  * 
  */
@@ -13,5 +14,17 @@ UCLASS()
 class SHOOTERVIDEOLEARN_API UGruxAnimInstance : public UAnimInstance
 {
 	GENERATED_BODY()
+
+public:
 	
+	UFUNCTION(BlueprintCallable)
+	void UpdateAnimationProperties(float DeltaTime);
+
+private:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
+	float Speed;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	AEnemy* Enemy;
 };
