@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "BulletHitInterface.h"
+#include "ShooterCharacter.h"
 #include "GameFramework/Character.h"
 #include "Enemy.generated.h"
 
+class UBoxComponent;
 class USphereComponent;
 class AEnemyAIController;
 class UBehaviorTree;
@@ -66,6 +68,32 @@ protected:
 
 	UFUNCTION(BlueprintPure)
 	FName GetAttackSectionName();
+
+	UFUNCTION()
+	void OnLeftWeaponOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                         const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnRightWeaponOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	                          UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
+	                          const FHitResult& SweepResult);
+
+	UFUNCTION(BlueprintCallable)
+	void ActivateLeftWeapon();
+	UFUNCTION(BlueprintCallable)
+	void DeactivateLeftWeapon();
+	UFUNCTION(BlueprintCallable)
+	void ActivateRightWeapon();
+	UFUNCTION(BlueprintCallable)
+	void DeactivateRightWeapon();
+
+	void DoDamage(AShooterCharacter* Victim);
+	void SpawnBlood(const AShooterCharacter* Victim, FName SocketName);
+
+	void StunCharacter(AShooterCharacter* Victim);
+
+	void ResetCanAttack();
 
 private:
 	// Particle System to spawn on hit
@@ -151,8 +179,32 @@ private:
 	FName AttackL;
 	FName AttackR;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UBoxComponent* LeftWeaponCollision;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UBoxComponent* RightWeaponCollision;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float BaseDamage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	FName LeftWeaponSocket;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	FName RightWeaponSocket;
+
+	UPROPERTY(VisibleAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
+	bool bCanAttack;
+
+	FTimerHandle AttackWaitTimer;
+
+	// Minimum time between attacks
+	UPROPERTY(EditAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float AttackWaitTime;
+
 public:
-	// Called every frame
+	// Called every frame 
 	virtual void Tick(float DeltaTime) override;
 
 	// Called to bind functionality to input
