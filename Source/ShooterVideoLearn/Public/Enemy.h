@@ -95,6 +95,12 @@ protected:
 
 	void ResetCanAttack();
 
+	UFUNCTION(BlueprintCallable)
+	void FinishDeath();
+
+	UFUNCTION()
+	void DestroyEnemy();
+
 private:
 	// Particle System to spawn on hit
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
@@ -203,6 +209,16 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Combat", meta = (AllowPrivateAccess = true))
 	float AttackWaitTime;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UAnimMontage* DeathMontage;
+
+	bool bDying;
+
+	FTimerHandle DeathTimer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float DeathTime;
+
 public:
 	// Called every frame 
 	virtual void Tick(float DeltaTime) override;
@@ -210,7 +226,7 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	virtual void BulletHit_Implementation(FHitResult HitResult) override;
+	virtual void BulletHit_Implementation(FHitResult HitResult, AActor* Shooter, AController* ShooterController) override;
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
 	                         class AController* EventInstigator, AActor* DamageCauser) override;

@@ -35,7 +35,9 @@ AEnemy::AEnemy() :
 	LeftWeaponSocket(TEXT("FX_Trail_L_01")),
 	RightWeaponSocket(TEXT("FX_Trail_R_01")),
 	bCanAttack(true),
-	AttackWaitTime(1.f)
+	AttackWaitTime(3.f),
+	bDying(false),
+	DeathTime(4.f)
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -86,7 +88,7 @@ void AEnemy::BeginPlay()
 	{
 		EnemyAIController->GetBlackboardComponent()->SetValueAsBool(TEXT("CanAttack"), true);
 	}
-	
+
 	const FVector WorldPatrolPoint = UKismetMathLibrary::TransformLocation(GetActorTransform(), PatrolPoint);
 	const FVector WorldPatrolPoint2 = UKismetMathLibrary::TransformLocation(GetActorTransform(), PatrolPoint2);
 	DrawDebugSphere(GetWorld(), WorldPatrolPoint, 25.f, 12, FColor::Red, true);
@@ -101,7 +103,19 @@ void AEnemy::BeginPlay()
 
 void AEnemy::Die()
 {
+	if (bDying) return;
+	bDying = true;
+
 	HideHealthBar();
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && DeathMontage)
+	{
+		AnimInstance->Montage_Play(DeathMontage);
+	}
+	if (EnemyAIController)
+	{
+		EnemyAIController->GetBlackboardComponent()->SetValueAsBool(FName("Dead"), true);
+		EnemyAIController->StopMovement();
+	}
 }
 
 void AEnemy::PlayHitMontage(FName Section, float PlayRate)
@@ -172,6 +186,7 @@ void AEnemy::AgroSphereOverlap(UPrimitiveComponent* OverlappedComp, AActor* Othe
 
 	if (const auto Character = Cast<AShooterCharacter>(OtherActor))
 	{
+		if (EnemyAIController == nullptr || EnemyAIController->GetBlackboardComponent() == nullptr) return;
 		EnemyAIController->GetBlackboardComponent()->SetValueAsObject(TEXT("Target"), Character);
 	}
 }
@@ -320,6 +335,17 @@ void AEnemy::ResetCanAttack()
 	}
 }
 
+void AEnemy::FinishDeath()
+{
+	GetMesh()->bPauseAnims = true;
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::DestroyEnemy, DeathTime);
+}
+
+void AEnemy::DestroyEnemy()
+{
+	Destroy();
+}
+
 void AEnemy::ShowHealthBar_Implementation()
 {
 	GetWorldTimerManager().ClearTimer(HealthBarTimer);
@@ -340,7 +366,7 @@ void AEnemy::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
-void AEnemy::BulletHit_Implementation(FHitResult HitResult)
+void AEnemy::BulletHit_Implementation(FHitResult HitResult, AActor* Shooter, AController* ShooterController)
 {
 	if (ImpactSound)
 	{
@@ -349,14 +375,6 @@ void AEnemy::BulletHit_Implementation(FHitResult HitResult)
 	if (ImpactParticles)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactParticles, HitResult.Location);
-	}
-	ShowHealthBar();
-
-	// Determine whether this hit stuns
-	if (const float Stunned = FMath::FRandRange(0.f, 1.f); Stunned <= StunChance)
-	{
-		PlayHitMontage(FName("HitReactionFront"));
-		SetStunned(true);
 	}
 }
 
@@ -368,7 +386,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 	{
 		EnemyAIController->GetBlackboardComponent()->SetValueAsObject(FName("Target"), DamageCauser);
 	}
-	
+
 	if (Health - DamageAmount <= 0.f)
 	{
 		Health = 0.f;
@@ -378,5 +396,17 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 	{
 		Health -= DamageAmount;
 	}
+	
+	if (bDying) return DamageAmount;
+
+	ShowHealthBar();
+
+	// Determine whether this hit stuns
+	if (const float Stunned = FMath::FRandRange(0.f, 1.f); Stunned <= StunChance)
+	{
+		PlayHitMontage(FName("HitReactionFront"));
+		SetStunned(true);
+	}
+	
 	return DamageAmount;
 }

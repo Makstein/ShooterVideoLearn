@@ -351,6 +351,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
 	float StunChance;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = true))
+	UAnimMontage* DeathMontage;
+
 protected:
 	void CharacterMove(const FInputActionInstance& Instance);
 
@@ -454,6 +457,11 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void EndStun();
+
+	void Die();
+
+	UFUNCTION(BlueprintCallable)
+	void FinishDeath();
 
 public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

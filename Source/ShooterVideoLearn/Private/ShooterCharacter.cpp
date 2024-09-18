@@ -5,12 +5,14 @@
 #include "Ammo.h"
 #include "BulletHitInterface.h"
 #include "Enemy.h"
+#include "EnemyAIController.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "item.h"
 #include "Weapon.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
@@ -125,6 +127,11 @@ float AShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent cons
 	if (Health - DamageAmount <= 0.f)
 	{
 		Health = 0.f;
+		Die();
+		if (const auto EnemyController = Cast<AEnemyAIController>(EventInstigator))
+		{
+			EnemyController->GetBlackboardComponent()->SetValueAsBool(FName("CharacterDead"), true);
+		}
 	}
 	else
 	{
@@ -590,7 +597,7 @@ void AShooterCharacter::SendBullet()
 				// If hit an enemy, try to call BulletHit interface
 				if (IBulletHitInterface* BulletHitInterface = Cast<IBulletHitInterface>(BeamHitResult.GetActor()))
 				{
-					BulletHitInterface->BulletHit_Implementation(BeamHitResult);
+					BulletHitInterface->BulletHit_Implementation(BeamHitResult, this, GetController());
 				}
 				if (AEnemy* HitEnemy = Cast<AEnemy>(BeamHitResult.GetActor()))
 				{
@@ -920,6 +927,24 @@ void AShooterCharacter::EndStun()
 	CombatState = ECombatState::ECS_Unoccupied;
 }
 
+void AShooterCharacter::Die()
+{
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && DeathMontage)
+	{
+		AnimInstance->Montage_Play(DeathMontage);
+	}
+}
+
+void AShooterCharacter::FinishDeath()
+{
+	GetMesh()->bPauseAnims = true;
+
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		DisableInput(PlayerController);
+	}
+}
+
 void AShooterCharacter::HighlightInventorySlot()
 {
 	const int32 EmptySlot{ GetEmptyInventorySlot() };
@@ -935,6 +960,7 @@ void AShooterCharacter::UnHighlightInventorySlot()
 
 void AShooterCharacter::Stun()
 {
+	if (Health <= 0.f) return;
 	CombatState = ECombatState::ECS_Stunned;
 	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance(); AnimInstance && HitReactMontage)
 	{
